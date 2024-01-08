@@ -31,7 +31,7 @@ export async function POST({ request }: any) {
 
     const validationResult = nodeCreateRequestValidator.validate(body);
     if (!!Object.keys(validationResult).length) {
-        throw error(400, { message: validationResult.toString() });
+        error(400, { message: validationResult.toString() });
     }
     
     let result = await CreateRelationship(body.project, body.linkType, body.sourceNodeId, body.targetNodeId, body.properties);
