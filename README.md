@@ -1,3 +1,3 @@
 # Growl
 
-The ***Gr***aph s***o***mething ***wl***
+The ***Gr***aph s***o***mething **_wl_**

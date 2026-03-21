@@ -1,22 +1,30 @@
 <script lang="ts">
-    import type { ComponentType } from 'svelte';
+    import type { Component } from 'svelte';
     import Circle from './circle.svelte';
     import Custom from './custom.svelte';
     import Square from './square.svelte';
     import Triangle from './triangle.svelte';
     import type { ShapeConfiguration } from './shapeConfiguration';
 
-    export let shapeConfiguration: ShapeConfiguration;
-    export let data: any;
+    interface Props {
+        shapeConfiguration: ShapeConfiguration;
+        data: any;
+    }
 
-    const graphNodeMap = new Map<string, ComponentType>([
+    let { shapeConfiguration, data }: Props = $props();
+
+    const graphNodeMap = new Map<string, Component<any>>([
         ['circle', Circle],
         ['square', Square],
         ['triangle', Triangle],
         ['custom', Custom]
     ]);
 
-    let nodeComponent = graphNodeMap.get(shapeConfiguration.shapeType) ?? Circle;
+    let NodeComponent = $derived(graphNodeMap.get(shapeConfiguration.shapeType) ?? Circle);
 </script>
 
-<svelte:component this={nodeComponent} labelPropertyName={shapeConfiguration.labelPropertyName} {data} {...shapeConfiguration.shapeProps} />
+<NodeComponent
+    labelPropertyName={shapeConfiguration.labelPropertyName}
+    {data}
+    {...shapeConfiguration.shapeProps}
+/>

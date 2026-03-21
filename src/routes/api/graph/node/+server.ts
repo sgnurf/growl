@@ -13,9 +13,9 @@ class NodeCreateRequestValidator extends Validator<NodeCreateRequest> {
     constructor() {
         super();
 
-        this.ruleFor('project').notNull().notEmpty().withMessage("Missing project");
-        this.ruleFor('nodeType').notNull().notEmpty().withMessage("Missing nodeType");
-        this.ruleFor('nodeId').notNull().notEmpty().withMessage("Missing nodeId");
+        this.ruleFor('project').notNull().notEmpty().withMessage('Missing project');
+        this.ruleFor('nodeType').notNull().notEmpty().withMessage('Missing nodeType');
+        this.ruleFor('nodeId').notNull().notEmpty().withMessage('Missing nodeId');
 
         //TODO Add properties validation
     }
@@ -24,17 +24,15 @@ class NodeCreateRequestValidator extends Validator<NodeCreateRequest> {
 const nodeCreateRequestValidator = new NodeCreateRequestValidator();
 
 export async function POST({ request }: any) {
-
-    const body = await request.json() as NodeCreateRequest;
+    const body = (await request.json()) as NodeCreateRequest;
 
     //Body validation
     const validationResult = nodeCreateRequestValidator.validate(body);
-    if (!!Object.keys(validationResult).length) {
+    if (Object.keys(validationResult).length > 0) {
         error(400, { message: validationResult.toString() });
     }
-    
+
     let result = await UpsertNode(body.project, body.nodeType, body.nodeId, body.properties);
-    
+
     return json(result);
-    
 }

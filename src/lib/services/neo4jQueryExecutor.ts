@@ -1,8 +1,6 @@
 import neo4j from 'neo4j-driver';
 
-const driver = neo4j.driver(
-    'neo4j://localhost:7687'
-)
+const driver = neo4j.driver('neo4j://localhost:7687');
 
 const idPropertyName = 'id';
 
@@ -10,14 +8,18 @@ async function executeQuery(query: string, params?: Record<string, any>) {
     return driver.executeQuery(query, params);
 }
 
-export async function CreatedNode(project: string, nodeType: string, nodeId: string, properties: Record<string, any>) {
-
+export async function CreatedNode(
+    project: string,
+    nodeType: string,
+    nodeId: string,
+    properties: Record<string, any>
+) {
     let propertiesQuery: string[] = [];
     propertiesQuery.push(`${idPropertyName}: '${nodeId}'`);
 
     for (const key in properties) {
         propertiesQuery.push(`${key}: $${key}`);
-    };
+    }
 
     const query = `
             CREATE (n:${project}:${nodeType} {${propertiesQuery.join(',')}})
@@ -33,23 +35,25 @@ export async function CreatedNode(project: string, nodeType: string, nodeId: str
     return { id: queryResult.records[0].get('id').toNumber() };
 }
 
-export async function UpsertNode(project: string, nodeType: string, nodeId: string, properties: Record<string, any>) {
-
+export async function UpsertNode(
+    project: string,
+    nodeType: string,
+    nodeId: string,
+    properties: Record<string, any>
+) {
     let propertiesQuery: string[] = [];
 
     for (const key in properties) {
         propertiesQuery.push(`n.${key}= $${key}`);
-    };
+    }
 
-    const query =
-        propertiesQuery.length ?
-            `MERGE (n:${project}:${nodeType} {${idPropertyName}: '${nodeId}'})
+    const query = propertiesQuery.length
+        ? `MERGE (n:${project}:${nodeType} {${idPropertyName}: '${nodeId}'})
                 ON CREATE SET ${propertiesQuery.join(',')}
                 ON MATCH SET ${propertiesQuery.join(',')}
             RETURN id(n) as id`
-            : `MERGE (n:${project}:${nodeType} {${idPropertyName}: '${nodeId}'})
-            RETURN id(n) as id`
-
+        : `MERGE (n:${project}:${nodeType} {${idPropertyName}: '${nodeId}'})
+            RETURN id(n) as id`;
 
     const queryResult = await executeQuery(query, properties);
 
@@ -61,7 +65,6 @@ export async function UpsertNode(project: string, nodeType: string, nodeId: stri
 }
 
 export async function DeleteNode(project: string, nodeType: string, nodeId: string) {
-
     const query = `
             MATCH (n:${project}:${nodeType} {${idPropertyName}: '${nodeId}'})
             DETACH DELETE n
@@ -71,13 +74,18 @@ export async function DeleteNode(project: string, nodeType: string, nodeId: stri
     return { nodeDeleted: queryResult.summary.counters.updates().nodesDeleted > 0 };
 }
 
-export async function CreateRelationship(project: string, relationshipType: string, sourceNodeId: string, targetNodeId: string, properties: Record<string, any>) {
-
+export async function CreateRelationship(
+    project: string,
+    relationshipType: string,
+    sourceNodeId: string,
+    targetNodeId: string,
+    properties: Record<string, any>
+) {
     let propertiesQuery: string[] = [];
 
     for (const key in properties) {
         propertiesQuery.push(`${key}: $${key}`);
-    };
+    }
 
     const query = `
             MATCH  
@@ -91,12 +99,11 @@ export async function CreateRelationship(project: string, relationshipType: stri
 }
 
 export async function UpdateRelationship(relationshipId: number, properties: Record<string, any>) {
-
     let propertiesQuery: string[] = [];
 
     for (const key in properties) {
         propertiesQuery.push(`rel.${key}= $${key}`);
-    };
+    }
 
     const query = `
             MATCH (r)-[rel]->(n)
@@ -108,7 +115,6 @@ export async function UpdateRelationship(relationshipId: number, properties: Rec
 }
 
 export async function DeleteRelationship(relationshipId: number) {
-
     const query = `
             MATCH (r)-[rel]->(n)
             WHERE id(rel) = ${relationshipId}
@@ -121,11 +127,11 @@ export async function DeleteRelationship(relationshipId: number) {
 export async function ExecuteQuery(query: string, params?: Record<string, any>) {
     const queryResult = await executeQuery(query, params);
 
-    queryResult.records.forEach(record => {
-        record.forEach((value, _) => {
+    queryResult.records.forEach((record) => {
+        record.forEach((_value, _key) => {
             //console.log(`${key}: ${value}`);
         });
     });
-    
+
     return queryResult;
 }

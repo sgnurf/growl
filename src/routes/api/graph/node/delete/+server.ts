@@ -12,20 +12,19 @@ class NodeDeleteRequestValidator extends Validator<NodeDeleteRequest> {
     constructor() {
         super();
 
-        this.ruleFor('project').notNull().notEmpty().withMessage("Missing project");
-        this.ruleFor('nodeType').notNull().notEmpty().withMessage("Missing nodeType");
-        this.ruleFor('nodeId').notNull().notEmpty().withMessage("Missing nodeId");
+        this.ruleFor('project').notNull().notEmpty().withMessage('Missing project');
+        this.ruleFor('nodeType').notNull().notEmpty().withMessage('Missing nodeType');
+        this.ruleFor('nodeId').notNull().notEmpty().withMessage('Missing nodeId');
     }
 }
 
 const nodeCreateRequestValidator = new NodeDeleteRequestValidator();
 
 export async function POST({ request }: any) {
-
-    const body = await request.json() as NodeDeleteRequest;
+    const body = (await request.json()) as NodeDeleteRequest;
 
     const validationResult = nodeCreateRequestValidator.validate(body);
-    if (!!Object.keys(validationResult).length) {
+    if (Object.keys(validationResult).length > 0) {
         error(400, { message: validationResult.toString() });
     }
 
