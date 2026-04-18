@@ -129,7 +129,13 @@
         />
     </label>
 
-    <Graph {nodes} {links} {config} {mode} onCreateLink={(source, target) => {
-        links = [...links, { source, target }];
-    }} />
+    <Graph
+        {nodes}
+        {links}
+        {config}
+        {mode}
+        onCreateLink={(source, target) => {
+            links = [...links, { source, target }];
+        }}
+    />
 </section>
