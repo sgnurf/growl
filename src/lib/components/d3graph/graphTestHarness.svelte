@@ -1,6 +1,6 @@
 <script lang="ts">
     import Graph from './graph.svelte';
-    import type { Node, Link } from '$lib/components/d3graph/types';
+    import type { Node, Link, GraphMode } from '$lib/components/d3graph/types';
     import { onMount } from 'svelte';
     import * as d3 from 'd3';
     import { defaultShapeConfigurations } from '$lib/components/d3graph/graphNodes/shapeConfiguration';
@@ -33,8 +33,27 @@
         manyBodyForce: true,
         manyBodyForceStrength: -30,
         alphaMin: 0.001,
-        alphaTarget: 0,
-        stopSimulation: false
+        alphaTarget: 0
+    });
+
+    let stopped = $state(false);
+    let ctrlPressed = $state(false);
+
+    let mode: GraphMode = $derived(ctrlPressed ? 'Edit' : stopped ? 'Static' : 'Simulation');
+
+    $effect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Control') ctrlPressed = true;
+        }
+        function handleKeyUp(e: KeyboardEvent) {
+            if (e.key === 'Control') ctrlPressed = false;
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
     });
 
     onMount(async function () {
@@ -62,7 +81,7 @@
 
 <section>
     <label>
-        <input type="checkbox" bind:checked={config.stopSimulation} />
+        <input type="checkbox" bind:checked={stopped} />
         Stop simulation
     </label>
     <label>
@@ -110,5 +129,7 @@
         />
     </label>
 
-    <Graph {nodes} {links} {config} />
+    <Graph {nodes} {links} {config} {mode} onCreateLink={(source, target) => {
+        links = [...links, { source, target }];
+    }} />
 </section>

@@ -6,7 +6,8 @@ test('renders graph', async () => {
     const { container } = render(Graph, {
         nodes: [{ id: '1', shapeConfiguration: defaultShapeConfigurations[0], data: {} }],
         links: [],
-        config: { width: 100, height: 100 }
+        config: { width: 100, height: 100 },
+        mode: 'Simulation' as const
     });
 
     // The D3 simulation places nodes asynchronously via timers, so wait for the

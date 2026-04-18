@@ -3,7 +3,7 @@
 <script lang="ts">
     import { untrack } from 'svelte';
     import * as d3 from 'd3';
-    import type { Node, Link } from './types';
+    import type { Node, Link, GraphMode } from './types';
     import Shape from './graphNodes/shape.svelte';
 
     interface SimulatedNode extends Node, d3.SimulationNodeDatum {}
@@ -23,16 +23,17 @@
         manyBodyDistanceMax?: number;
         alphaMin?: number;
         alphaTarget?: number;
-        stopSimulation?: boolean;
     }
 
     interface Props {
         config: GraphConfiguration;
         nodes: Node[];
         links: Link[];
+        mode: GraphMode;
+        onCreateLink?: (source: string, target: string) => void;
     }
 
-    let { config, nodes, links }: Props = $props();
+    let { config, nodes, links, mode, onCreateLink }: Props = $props();
 
     let svg: Element | undefined = $state();
     let viewBoxElement: Element | undefined = $state();
@@ -63,8 +64,12 @@
     // Simulation is created once — never inside $derived to avoid the state_unsafe_mutation error
     const simulation = d3.forceSimulation<SimulatedNode>().on('tick', () => {
         renderedNodes = [...simulatedNodes];
-        //Retyping since at this point D3 will have replaced the ids with the actual nodes
-        renderedLinks = [...simulatedLinks] as unknown as SimulatedLink[];
+        // Only update links from simulatedLinks while running: when stopped the link force is null
+        // so simulatedLinks still holds raw string IDs rather than resolved node objects.
+        if (mode === 'Simulation') {
+            //Retyping since at this point D3 will have replaced the ids with the actual nodes
+            renderedLinks = [...simulatedLinks] as unknown as SimulatedLink[];
+        }
     });
 
     $effect(() => {
@@ -77,8 +82,7 @@
     });
 
     $effect(() => {
-        console.log(`[${new Date().toLocaleString()}] Start link force: ${config.linkDistance}`);
-        if (!config.stopSimulation && config.linkDistance) {
+        if (mode === 'Simulation' && config.linkDistance) {
             let forceLink = d3
                 .forceLink(simulatedLinks)
                 .id(({ index: i }) => nodeIds[i!])
@@ -90,7 +94,7 @@
     });
 
     $effect(() => {
-        if (config.stopSimulation) {
+        if (mode !== 'Simulation') {
             simulation.stop();
 
             //The simulation continues to run a few seconds even after stop() is called, fixing position as a workaround
@@ -110,7 +114,7 @@
     });
 
     $effect(() => {
-        if (!config.stopSimulation && config.manyBodyForce) {
+        if (mode === 'Simulation' && config.manyBodyForce) {
             simulation.force(
                 'charge',
                 d3
@@ -124,17 +128,49 @@
     });
 
     $effect(() => {
-        if (!config.stopSimulation && config.centeringForce) {
+        if (mode === 'Simulation' && config.centeringForce) {
             simulation.force('center', d3.forceCenter(0, 0));
         } else {
             simulation.force('center', null);
         }
     });
 
+    let edgeDragSource: SimulatedNode | null = $state(null);
+    let edgeDragCursor: { x: number; y: number } | null = $state(null);
+
+    $effect(() => {
+        if (mode !== 'Edit') {
+            edgeDragSource = null;
+            edgeDragCursor = null;
+        }
+    });
+
+    function getInteractedNode(e: any): SimulatedNode | undefined {
+        const domNode = e.sourceEvent.target.closest('[data-nodeId]');
+        if (domNode) {
+            const nodeId = domNode.dataset.nodeid;
+            return simulatedNodes.find((n) => n.id == nodeId);
+        }
+    }
+
+    function getNodeAtClientPoint(clientX: number, clientY: number): SimulatedNode | undefined {
+        const domNode = document.elementFromPoint(clientX, clientY)?.closest('[data-nodeId]');
+        if (domNode) {
+            const nodeId = (domNode as HTMLElement).dataset.nodeid;
+            return simulatedNodes.find((n) => n.id == nodeId);
+        }
+    }
+
     function nodeDragging(sim: d3.Simulation<SimulatedNode, SimulatedLink>) {
         function dragstarted(e: any) {
-            console.log(`[${new Date().toLocaleString()}] Drag started ${e.subject.id}`);
-            if (!config.stopSimulation && !e.active) sim.alphaTarget(0.3).restart();
+            if (mode === 'Edit') {
+                if (e.subject) {
+                    edgeDragSource = e.subject;
+                    edgeDragCursor = { x: e.subject.x ?? 0, y: e.subject.y ?? 0 };
+                }
+                return;
+            }
+            if (mode === 'Simulation' && !e.active) sim.alphaTarget(0.3).restart();
             // Use the node's own simulation coordinates, not the raw event position.
             // e.x/y are in SVG/viewBox space; after any pan/zoom they differ from simulation space.
             e.subject.fx = e.subject.x;
@@ -142,22 +178,45 @@
         }
 
         function dragged(e: any) {
+            if (mode === 'Edit') {
+                const rawPos = d3.pointer(e.sourceEvent, svg);
+                const transform = svg ? d3.zoomTransform(svg) : d3.zoomIdentity;
+                const [simX, simY] = transform.invert(rawPos);
+                edgeDragCursor = { x: simX, y: simY };
+                return;
+            }
             // e.dx/dy are deltas in SVG/viewBox space; dividing by zoom scale converts to simulation space.
             const k = (svg ? d3.zoomTransform(svg)?.k : undefined) ?? 1;
 
             e.subject.fx += e.dx / k;
             e.subject.fy += e.dy / k;
 
-            if (config.stopSimulation) {
+            if (mode === 'Static') {
                 // fx/fy already updated above; tick propagates them to x/y for rendering.
                 sim.tick();
                 renderedNodes = [...simulatedNodes];
-                renderedLinks = [...simulatedLinks] as unknown as SimulatedLink[];
+                renderedLinks = [...renderedLinks];
             }
         }
 
         function dragended(e: any) {
-            if (config.stopSimulation) return;
+            if (mode === 'Edit') {
+                if (edgeDragSource) {
+                    const rawPos = d3.pointer(e.sourceEvent, svg);
+                    const transform = svg ? d3.zoomTransform(svg) : d3.zoomIdentity;
+                    const [simX, simY] = transform.invert(rawPos);
+                    const targetNode =
+                        getNodeAtClientPoint(e.sourceEvent.clientX, e.sourceEvent.clientY) ??
+                        sim.find(simX, simY, 20);
+                    if (targetNode && targetNode.id !== edgeDragSource.id) {
+                        onCreateLink?.(edgeDragSource.id, targetNode.id);
+                    }
+                }
+                edgeDragSource = null;
+                edgeDragCursor = null;
+                return;
+            }
+            if (mode === 'Static') return;
 
             if (!e.active) sim.alphaTarget(0);
 
@@ -168,17 +227,6 @@
         }
 
         function dragSubject(e: any) {
-            console.log(`[${new Date().toLocaleString()}] Drag subject ${e.x} ${e.y}`);
-
-            function getInteractedNode(e: any) {
-                let domNode = e.sourceEvent.target.closest('[data-nodeId]');
-
-                if (domNode) {
-                    let nodeId = domNode.dataset.nodeid;
-                    return simulatedNodes.find((n) => n.id == nodeId);
-                }
-            }
-
             // sim.find expects simulation coordinates; inverse-transform from SVG/viewBox space.
             const transform = svg ? d3.zoomTransform(svg) : d3.zoomIdentity;
             const [simX, simY] = transform.invert([e.x, e.y]);
@@ -187,6 +235,7 @@
 
         return d3
             .drag()
+            .filter((event) => !event.button) // default also excludes ctrlKey — allow it for edge drawing
             .container(svg! as d3.DragContainerElement)
             .subject(dragSubject)
             .on('start', dragstarted)
@@ -204,14 +253,20 @@
 
     $effect(() => {
         if (!svg) return;
-        console.log(`[${new Date().toLocaleString()}] Reassigning drag behaviour`);
         d3.select(svg).call(nodeDragging(simulation)).call(zoomAndPan());
     });
 
     $effect(() => {
         console.log(`[${new Date().toLocaleString()}] Reassigning rendered node and links`);
         renderedNodes = [...simulatedNodes];
-        renderedLinks = [...simulatedLinks] as unknown as SimulatedLink[];
+        // simulatedLinks holds raw string IDs until D3's link force resolves them, which never
+        // happens when stopSimulation is true. Always resolve from simulatedNodes by ID instead.
+        renderedLinks = links
+            .map((l) => ({
+                source: simulatedNodes.find((n) => n.id === l.source),
+                target: simulatedNodes.find((n) => n.id === l.target),
+            }))
+            .filter((l): l is SimulatedLink => !!l.source && !!l.target);
     });
 
     let currentId = $state(0);
@@ -227,11 +282,25 @@
     {width}
     {height}
     viewBox={viewbox}
-    style="max-width: 100%; height: auto; height: intrinsic;"
+    style="max-width: 100%; height: auto; height: intrinsic; cursor: {mode === 'Edit'
+        ? 'crosshair'
+        : 'default'};"
 >
     <g bind:this={viewBoxElement}>
+        {#if edgeDragSource && edgeDragCursor && edgeDragSource.x !== undefined && edgeDragSource.y !== undefined}
+            <line
+                x1={edgeDragSource.x}
+                y1={edgeDragSource.y}
+                x2={edgeDragCursor.x}
+                y2={edgeDragCursor.y}
+                stroke="#4488ff"
+                stroke-width="2"
+                stroke-dasharray="6,4"
+                stroke-opacity="0.8"
+                pointer-events="none"
+            />
+        {/if}
         <g stroke="#999999" stroke-opacity="0.6" stroke-linecap="round">
-            <!-- TODO: When simulation is stopped, if the list of links is refreshed we have ids instead of object in rendered links and this blows up  -->
             {#each renderedLinks as { source, target } (source.id + '-' + target.id)}
                 <line
                     stroke-width="1"

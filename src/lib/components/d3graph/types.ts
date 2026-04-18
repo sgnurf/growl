@@ -1,5 +1,7 @@
 import type { ShapeConfiguration } from './graphNodes/shapeConfiguration';
 
+export type GraphMode = 'Simulation' | 'Static' | 'Edit';
+
 export interface Node {
     id: string;
     fixed?: boolean;
