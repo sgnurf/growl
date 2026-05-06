@@ -5,6 +5,7 @@
     import type { PageData } from './$types';
     import { entityToNode, entitiesToNodes, entityRelationshipsToLinks } from '$lib/mappers/graphMapper';
     import type { EntityType, RelationshipType } from '$lib/schema/types';
+    import Button from '$lib/components/ui/Button.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -196,7 +197,7 @@
                                         placeholder={field.name}
                                         value={String(entityFieldValues[field.name] ?? '')}
                                         oninput={(event) => { entityFieldValues[field.name] = (event.target as HTMLInputElement).value; }}
-                                        class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                        class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     />
                                 {/if}
                             </div>
@@ -204,15 +205,8 @@
                     {/if}
 
                     <div class="flex gap-2 mt-1">
-                        <button
-                            onclick={submitCreateEntity}
-                            disabled={isSubmitting}
-                            class="flex-1 py-2 bg-black text-white rounded text-sm hover:bg-gray-800 disabled:opacity-50"
-                        >Create</button>
-                        <button
-                            onclick={cancelPanel}
-                            class="px-3 py-2 border rounded text-sm hover:bg-gray-50"
-                        >Cancel</button>
+                        <Button onclick={submitCreateEntity} disabled={isSubmitting} class="flex-1">Create</Button>
+                        <Button variant="secondary" onclick={cancelPanel}>Cancel</Button>
                     </div>
                 </div>
 
@@ -245,7 +239,7 @@
                                     ) ?? null;
                                     relationshipFieldValues = {};
                                 }}
-                                class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                             >
                                 {#each data.relationshipTypes as relationshipType}
                                     <option value={relationshipType.id}>{relationshipType.name}</option>
@@ -265,21 +259,15 @@
                                         placeholder={field.name}
                                         value={String(relationshipFieldValues[field.name] ?? '')}
                                         oninput={(event) => { relationshipFieldValues[field.name] = (event.target as HTMLInputElement).value; }}
-                                        class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                        class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     />
                                 </div>
                             {/each}
                         {/if}
 
                         <div class="flex gap-2 mt-1">
-                            <button
-                                onclick={submitCreateRelationship}
-                                disabled={isSubmitting}
-                                class="flex-1 py-2 bg-black text-white rounded text-sm hover:bg-gray-800 disabled:opacity-50"
-                            >Create</button>
-                            <button onclick={cancelPanel} class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
-                                Cancel
-                            </button>
+                            <Button onclick={submitCreateRelationship} disabled={isSubmitting} class="flex-1">Create</Button>
+                            <Button variant="secondary" onclick={cancelPanel}>Cancel</Button>
                         </div>
                     {/if}
                 </div>
@@ -298,10 +286,7 @@
                             {#each data.entityTypes as entityType}
                                 <li class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50">
                                     <span class="text-sm">{entityType.name}</span>
-                                    <button
-                                        onclick={() => openCreateEntity(entityType)}
-                                        class="text-xs text-blue-600 hover:underline shrink-0"
-                                    >+ Add</button>
+                                    <Button variant="ghost" onclick={() => openCreateEntity(entityType)} class="shrink-0">+ Add</Button>
                                 </li>
                             {/each}
                         </ul>

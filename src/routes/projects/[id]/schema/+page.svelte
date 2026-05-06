@@ -2,11 +2,21 @@
     import { enhance } from '$app/forms';
     import type { PageData } from './$types';
     import type { Field, EntityType, RelationshipType } from '$lib/schema/types';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Input from '$lib/components/ui/Input.svelte';
+    import FormField from '$lib/components/ui/FormField.svelte';
+    import Card from '$lib/components/ui/Card.svelte';
+    import TabBar from '$lib/components/ui/TabBar.svelte';
 
     let { data }: { data: PageData } = $props();
 
     type Tab = 'entity-types' | 'relationship-types';
     let activeTab = $state<Tab>('entity-types');
+
+    const schemaTabs = [
+        { id: 'entity-types', label: 'Entity Types' },
+        { id: 'relationship-types', label: 'Relationship Types' }
+    ];
 
     // ── Entity type form state ────────────────────────────────────────────────
     let showEntityTypeForm = $state(false);
@@ -88,27 +98,13 @@
         {/if}
     </div>
 
-    <!-- Tabs -->
-    <div class="flex gap-1 border-b mb-6">
-        {#each [['entity-types', 'Entity Types'], ['relationship-types', 'Relationship Types']] as [key, label]}
-            <button
-                onclick={() => (activeTab = key as Tab)}
-                class="px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px"
-                class:border-black={activeTab === key}
-                class:text-black={activeTab === key}
-                class:border-transparent={activeTab !== key}
-                class:text-gray-500={activeTab !== key}
-            >{label}</button>
-        {/each}
-    </div>
+    <TabBar tabs={schemaTabs} active={activeTab} onchange={(id) => (activeTab = id as Tab)} />
 
     <!-- ── Entity Types tab ─────────────────────────────────────────────────── -->
     {#if activeTab === 'entity-types'}
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold">Entity Types</h2>
-            <button onclick={openNewEntityType} class="px-3 py-1.5 bg-black text-white rounded text-sm hover:bg-gray-800">
-                Add entity type
-            </button>
+            <Button size="sm" onclick={openNewEntityType}>Add entity type</Button>
         </div>
 
         {#if showEntityTypeForm}
@@ -124,32 +120,26 @@
                 <input type="hidden" name="fields" value={JSON.stringify(etFields)} />
 
                 <div class="flex gap-4">
-                    <div class="flex flex-col gap-1 flex-1">
-                        <label class="text-sm font-medium" for="et-name">Name</label>
-                        <input
-                            id="et-name" name="name" type="text" required
+                    <FormField label="Name" for="et-name" required class="flex-1">
+                        <Input
+                            id="et-name" name="name" required
                             value={editingEntityType?.name ?? ''}
                             placeholder="e.g. Software System"
-                            class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                         />
-                    </div>
-                    <div class="flex flex-col gap-1 flex-1">
-                        <label class="text-sm font-medium" for="et-desc">Description</label>
-                        <input
-                            id="et-desc" name="description" type="text"
+                    </FormField>
+                    <FormField label="Description" for="et-desc" class="flex-1">
+                        <Input
+                            id="et-desc" name="description"
                             value={editingEntityType?.description ?? ''}
                             placeholder="Optional"
-                            class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                         />
-                    </div>
+                    </FormField>
                 </div>
 
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-sm font-medium">Fields</span>
-                        <button type="button" onclick={addEtField} class="text-xs text-blue-600 hover:underline">
-                            + Add field
-                        </button>
+                        <Button variant="ghost" onclick={addEtField}>+ Add field</Button>
                     </div>
                     {#if etFields.length === 0}
                         <p class="text-xs text-gray-400">No fields defined.</p>
@@ -160,11 +150,11 @@
                                 type="text"
                                 placeholder="Field name"
                                 bind:value={etFields[i].name}
-                                class="border rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:ring-1 focus:ring-black"
+                                class="border rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-black"
                             />
                             <select
                                 bind:value={etFields[i].type}
-                                class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                             >
                                 {#each fieldTypes as ft}<option value={ft}>{ft}</option>{/each}
                             </select>
@@ -178,12 +168,10 @@
                 </div>
 
                 <div class="flex gap-2">
-                    <button type="submit" class="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800">
+                    <Button type="submit">
                         {editingEntityType ? 'Save changes' : 'Create entity type'}
-                    </button>
-                    <button type="button" onclick={closeEntityTypeForm} class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
-                        Cancel
-                    </button>
+                    </Button>
+                    <Button variant="secondary" onclick={closeEntityTypeForm}>Cancel</Button>
                 </div>
             </form>
         {/if}
@@ -193,26 +181,29 @@
         {:else}
             <ul class="flex flex-col gap-2">
                 {#each data.entityTypes as et}
-                    <li class="border rounded-lg p-4 flex items-start justify-between gap-4">
-                        <div>
-                            <p class="font-medium">{et.name}</p>
-                            {#if et.description}<p class="text-sm text-gray-500">{et.description}</p>{/if}
-                            {#if et.fields.length > 0}
-                                <p class="text-xs text-gray-400 mt-1">
-                                    {et.fields.map(f => `${f.name}: ${f.type}${f.required ? '*' : ''}`).join(' · ')}
-                                </p>
-                            {/if}
-                        </div>
-                        <div class="flex gap-2 shrink-0">
-                            <button onclick={() => openEditEntityType(et)} class="text-xs text-blue-600 hover:underline">Edit</button>
-                            <form method="POST" action="?/deleteEntityType" use:enhance>
-                                <input type="hidden" name="id" value={et.id} />
-                                <button type="submit" class="text-xs text-red-500 hover:underline"
-                                    onclick={(e) => { if (!confirm(`Delete "${et.name}"?`)) e.preventDefault(); }}>
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
+                    <li>
+                        <Card class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="font-medium">{et.name}</p>
+                                {#if et.description}<p class="text-sm text-gray-500">{et.description}</p>{/if}
+                                {#if et.fields.length > 0}
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        {et.fields.map(f => `${f.name}: ${f.type}${f.required ? '*' : ''}`).join(' · ')}
+                                    </p>
+                                {/if}
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <Button variant="ghost" onclick={() => openEditEntityType(et)}>Edit</Button>
+                                <form method="POST" action="?/deleteEntityType" use:enhance>
+                                    <input type="hidden" name="id" value={et.id} />
+                                    <Button
+                                        variant="destructive"
+                                        type="submit"
+                                        onclick={(e) => { if (!confirm(`Delete "${et.name}"?`)) e.preventDefault(); }}
+                                    >Delete</Button>
+                                </form>
+                            </div>
+                        </Card>
                     </li>
                 {/each}
             </ul>
@@ -223,9 +214,7 @@
     {#if activeTab === 'relationship-types'}
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold">Relationship Types</h2>
-            <button onclick={openNewRelType} class="px-3 py-1.5 bg-black text-white rounded text-sm hover:bg-gray-800">
-                Add relationship type
-            </button>
+            <Button size="sm" onclick={openNewRelType}>Add relationship type</Button>
         </div>
 
         {#if showRelTypeForm}
@@ -241,28 +230,24 @@
                 <input type="hidden" name="fields" value={JSON.stringify(rtFields)} />
 
                 <div class="flex gap-4">
-                    <div class="flex flex-col gap-1 flex-1">
-                        <label class="text-sm font-medium" for="rt-name">Name</label>
-                        <input
-                            id="rt-name" name="name" type="text" required
+                    <FormField label="Name" for="rt-name" required class="flex-1">
+                        <Input
+                            id="rt-name" name="name" required
                             value={editingRelType?.name ?? ''}
                             placeholder="e.g. Depends On"
-                            class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                         />
-                    </div>
-                    <div class="flex flex-col gap-1 flex-1">
-                        <label class="text-sm font-medium" for="rt-desc">Description</label>
-                        <input
-                            id="rt-desc" name="description" type="text"
+                    </FormField>
+                    <FormField label="Description" for="rt-desc" class="flex-1">
+                        <Input
+                            id="rt-desc" name="description"
                             value={editingRelType?.description ?? ''}
                             placeholder="Optional"
-                            class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                         />
-                    </div>
+                    </FormField>
                 </div>
 
                 <div class="flex gap-4">
-                    <div class="flex flex-col gap-1 flex-1">
+                    <div class="flex flex-col gap-2 flex-1">
                         <label class="text-sm font-medium" for="rt-src">Source entity type</label>
                         <select
                             id="rt-src" name="sourceEntityTypeId"
@@ -274,7 +259,7 @@
                             {/each}
                         </select>
                     </div>
-                    <div class="flex flex-col gap-1 flex-1">
+                    <div class="flex flex-col gap-2 flex-1">
                         <label class="text-sm font-medium" for="rt-tgt">Target entity type</label>
                         <select
                             id="rt-tgt" name="targetEntityTypeId"
@@ -291,7 +276,7 @@
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-sm font-medium">Fields</span>
-                        <button type="button" onclick={addRtField} class="text-xs text-blue-600 hover:underline">+ Add field</button>
+                        <Button variant="ghost" onclick={addRtField}>+ Add field</Button>
                     </div>
                     {#if rtFields.length === 0}
                         <p class="text-xs text-gray-400">No fields defined.</p>
@@ -302,11 +287,11 @@
                                 type="text"
                                 placeholder="Field name"
                                 bind:value={rtFields[i].name}
-                                class="border rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:ring-1 focus:ring-black"
+                                class="border rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-black"
                             />
                             <select
                                 bind:value={rtFields[i].type}
-                                class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                             >
                                 {#each fieldTypes as ft}<option value={ft}>{ft}</option>{/each}
                             </select>
@@ -320,12 +305,10 @@
                 </div>
 
                 <div class="flex gap-2">
-                    <button type="submit" class="px-4 py-2 bg-black text-white rounded text-sm hover:bg-gray-800">
+                    <Button type="submit">
                         {editingRelType ? 'Save changes' : 'Create relationship type'}
-                    </button>
-                    <button type="button" onclick={closeRelTypeForm} class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
-                        Cancel
-                    </button>
+                    </Button>
+                    <Button variant="secondary" onclick={closeRelTypeForm}>Cancel</Button>
                 </div>
             </form>
         {/if}
@@ -335,33 +318,36 @@
         {:else}
             <ul class="flex flex-col gap-2">
                 {#each data.relationshipTypes as rt}
-                    <li class="border rounded-lg p-4 flex items-start justify-between gap-4">
-                        <div>
-                            <p class="font-medium">{rt.name}</p>
-                            {#if rt.description}<p class="text-sm text-gray-500">{rt.description}</p>{/if}
-                            <p class="text-xs text-gray-400 mt-1">
-                                {#if rt.sourceEntityTypeId || rt.targetEntityTypeId}
-                                    {data.entityTypes.find(e => e.id === rt.sourceEntityTypeId)?.name ?? 'Any'}
-                                    →
-                                    {data.entityTypes.find(e => e.id === rt.targetEntityTypeId)?.name ?? 'Any'}
-                                {:else}
-                                    Any → Any
-                                {/if}
-                                {#if rt.fields.length > 0}
-                                    · {rt.fields.map(f => `${f.name}: ${f.type}${f.required ? '*' : ''}`).join(' · ')}
-                                {/if}
-                            </p>
-                        </div>
-                        <div class="flex gap-2 shrink-0">
-                            <button onclick={() => openEditRelType(rt)} class="text-xs text-blue-600 hover:underline">Edit</button>
-                            <form method="POST" action="?/deleteRelationshipType" use:enhance>
-                                <input type="hidden" name="id" value={rt.id} />
-                                <button type="submit" class="text-xs text-red-500 hover:underline"
-                                    onclick={(e) => { if (!confirm(`Delete "${rt.name}"?`)) e.preventDefault(); }}>
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
+                    <li>
+                        <Card class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="font-medium">{rt.name}</p>
+                                {#if rt.description}<p class="text-sm text-gray-500">{rt.description}</p>{/if}
+                                <p class="text-xs text-gray-400 mt-1">
+                                    {#if rt.sourceEntityTypeId || rt.targetEntityTypeId}
+                                        {data.entityTypes.find(e => e.id === rt.sourceEntityTypeId)?.name ?? 'Any'}
+                                        →
+                                        {data.entityTypes.find(e => e.id === rt.targetEntityTypeId)?.name ?? 'Any'}
+                                    {:else}
+                                        Any → Any
+                                    {/if}
+                                    {#if rt.fields.length > 0}
+                                        · {rt.fields.map(f => `${f.name}: ${f.type}${f.required ? '*' : ''}`).join(' · ')}
+                                    {/if}
+                                </p>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <Button variant="ghost" onclick={() => openEditRelType(rt)}>Edit</Button>
+                                <form method="POST" action="?/deleteRelationshipType" use:enhance>
+                                    <input type="hidden" name="id" value={rt.id} />
+                                    <Button
+                                        variant="destructive"
+                                        type="submit"
+                                        onclick={(e) => { if (!confirm(`Delete "${rt.name}"?`)) e.preventDefault(); }}
+                                    >Delete</Button>
+                                </form>
+                            </div>
+                        </Card>
                     </li>
                 {/each}
             </ul>

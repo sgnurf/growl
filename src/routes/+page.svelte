@@ -1,6 +1,10 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import type { PageData, ActionData } from './$types';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Input from '$lib/components/ui/Input.svelte';
+    import FormField from '$lib/components/ui/FormField.svelte';
+    import Card from '$lib/components/ui/Card.svelte';
 
     let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -14,12 +18,9 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-3xl font-bold">Projects</h1>
-        <button
-            onclick={() => (showNewProjectForm = !showNewProjectForm)}
-            class="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors"
-        >
+        <Button onclick={() => (showNewProjectForm = !showNewProjectForm)}>
             {showNewProjectForm ? 'Cancel' : 'New project'}
-        </button>
+        </Button>
     </div>
 
     {#if showNewProjectForm}
@@ -32,33 +33,13 @@
             {#if form?.error}
                 <p class="text-red-600 text-sm">{form.error}</p>
             {/if}
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium" for="name">Project name</label>
-                <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    required
-                    placeholder="e.g. ACME Software Architecture"
-                    class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                />
-            </div>
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium" for="description">Description</label>
-                <input
-                    id="description"
-                    name="description"
-                    type="text"
-                    placeholder="Optional"
-                    class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                />
-            </div>
-            <button
-                type="submit"
-                class="self-start px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors text-sm"
-            >
-                Create project
-            </button>
+            <FormField label="Project name" for="name" required>
+                <Input id="name" name="name" placeholder="e.g. ACME Software Architecture" required />
+            </FormField>
+            <FormField label="Description" for="description">
+                <Input id="description" name="description" placeholder="Optional" />
+            </FormField>
+            <Button type="submit" size="sm" class="self-start">Create project</Button>
         </form>
     {/if}
 
@@ -67,13 +48,13 @@
     {:else}
         <ul class="flex flex-col gap-3">
             {#each data.projects as project}
-                <li class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <a href="/projects/{project.id}/schema" class="block">
+                <li>
+                    <Card href="/projects/{project.id}/schema">
                         <p class="font-semibold">{project.name}</p>
                         {#if project.description}
                             <p class="text-sm text-gray-500 mt-0.5">{project.description}</p>
                         {/if}
-                    </a>
+                    </Card>
                 </li>
             {/each}
         </ul>
