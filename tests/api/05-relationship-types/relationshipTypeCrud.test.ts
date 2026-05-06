@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { testName } from '../../testConfig';
 
 let projectId: string;
 let sourceEntityTypeId: string;
@@ -7,7 +8,7 @@ let relationshipTypesUrl: string;
 
 test.beforeAll(async ({ request }) => {
     const projectRes = await request.post('/api/v1/projects', {
-        data: { name: 'Relationship Type Test Project' }
+        data: { name: testName('Relationship Type Test Project') }
     });
     const { data: project } = await projectRes.json();
     projectId = project.id;

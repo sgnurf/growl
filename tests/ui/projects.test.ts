@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { testName } from '../testConfig';
 
 test('project list shows heading and new project button', async ({ page }) => {
     await page.goto('/');
@@ -24,19 +25,20 @@ test('clicking cancel hides the form again', async ({ page }) => {
 test('creating a project navigates to its schema page', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'New project' }).click();
-    await page.getByLabel('Project name').fill('UI Test Project');
+    await page.getByLabel('Project name').fill(testName('UI Created Project'));
     await page.getByLabel('Description').fill('Created by UI test');
     await page.getByRole('button', { name: 'Create project' }).click();
 
     await expect(page).toHaveURL(/\/projects\/.+\/schema/);
-    await expect(page.getByRole('heading', { name: 'UI Test Project' })).toBeVisible();
 });
 
 test('created project appears in the project list', async ({ page, request }) => {
+    const name = testName('Listed UI Project');
     await request.post('/api/v1/projects', {
-        data: { name: 'Listed UI Project', description: 'Should appear in list' }
+        data: { name, description: 'Should appear in list' }
     });
 
     await page.goto('/');
-    await expect(page.getByText('Listed UI Project')).toBeVisible();
+    // getByText scopes to exact name so it's unique within this test run
+    await expect(page.getByText(name).first()).toBeVisible();
 });

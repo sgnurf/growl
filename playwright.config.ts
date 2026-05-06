@@ -5,6 +5,9 @@ const config: PlaywrightTestConfig = {
         command: 'npm run build && npm run preview',
         port: 4173
     },
+    // Tests share a Neo4j instance and are not designed for parallel isolation
+    workers: 1,
+    globalTeardown: './tests/globalTeardown.ts',
     testDir: 'tests',
     testMatch: /(.+\.)?(test|spec)\.[jt]s/,
     projects: [
@@ -14,12 +17,7 @@ const config: PlaywrightTestConfig = {
         },
         {
             name: 'api',
-            testMatch: 'tests/api/**/?(*.)+(spec|test).[jt]s',
-            dependencies: ['apiSetup']
-        },
-        {
-            name: 'apiSetup',
-            testMatch: 'tests/api/apiTest.setup.ts'
+            testMatch: 'tests/api/**/?(*.)+(spec|test).[jt]s'
         }
     ]
 };

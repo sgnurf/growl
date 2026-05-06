@@ -1,7 +1,12 @@
-import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
+import { listEntityTypes, listRelationshipTypes } from '$lib/db/metaRepository';
+import { getProjectGraph } from '$lib/db/entityRepository';
 
-// Redirect project root to its schema page for now.
-// Phase 2 will replace this with the graph view.
-export function load({ params }: { params: { id: string } }) {
-    redirect(302, `/projects/${params.id}/schema`);
-}
+export const load: PageServerLoad = async ({ params }) => {
+    const [entityTypes, relationshipTypes, { entities, relationships }] = await Promise.all([
+        listEntityTypes(params.id),
+        listRelationshipTypes(params.id),
+        getProjectGraph(params.id)
+    ]);
+    return { entityTypes, relationshipTypes, entities, relationships };
+};

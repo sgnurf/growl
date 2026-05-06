@@ -1,19 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { testName } from '../../testConfig';
 
 let projectId: string;
-let etBase: string;
+let entityTypesUrl: string;
 
 test.beforeAll(async ({ request }) => {
     const res = await request.post('/api/v1/projects', {
-        data: { name: 'Entity Type Test Project' }
+        data: { name: testName('Entity Type Test Project') }
     });
     const { data } = await res.json();
     projectId = data.id;
-    etBase = `/api/v1/projects/${projectId}/entity-types`;
+    entityTypesUrl = `/api/v1/projects/${projectId}/entity-types`;
 });
 
 test('should create an entity type', async ({ request }) => {
-    const res = await request.post(etBase, {
+    const res = await request.post(entityTypesUrl, {
         data: { name: 'Software System', description: 'A top-level software system' }
     });
     expect(res.status()).toBe(201);
@@ -26,7 +27,7 @@ test('should create an entity type', async ({ request }) => {
 });
 
 test('should create an entity type with fields and assign ids to each field', async ({ request }) => {
-    const res = await request.post(etBase, {
+    const res = await request.post(entityTypesUrl, {
         data: {
             name: 'Container',
             fields: [
@@ -46,14 +47,14 @@ test('should create an entity type with fields and assign ids to each field', as
 });
 
 test('should not create an entity type without a name', async ({ request }) => {
-    const res = await request.post(etBase, { data: { description: 'Missing name' } });
+    const res = await request.post(entityTypesUrl, { data: { description: 'Missing name' } });
     expect(res.status()).toBe(400);
 });
 
 test('should list entity types for a project', async ({ request }) => {
-    await request.post(etBase, { data: { name: 'Person' } });
+    await request.post(entityTypesUrl, { data: { name: 'Person' } });
 
-    const res = await request.get(etBase);
+    const res = await request.get(entityTypesUrl);
     expect(res.status()).toBe(200);
     const { data } = await res.json();
     expect(Array.isArray(data)).toBe(true);
@@ -61,10 +62,10 @@ test('should list entity types for a project', async ({ request }) => {
 });
 
 test('should update an entity type name, description and fields', async ({ request }) => {
-    const createRes = await request.post(etBase, { data: { name: 'Component' } });
+    const createRes = await request.post(entityTypesUrl, { data: { name: 'Component' } });
     const { data: created } = await createRes.json();
 
-    const res = await request.patch(`${etBase}/${created.id}`, {
+    const res = await request.patch(`${entityTypesUrl}/${created.id}`, {
         data: {
             name: 'Component (updated)',
             description: 'Now with a description',
@@ -80,18 +81,18 @@ test('should update an entity type name, description and fields', async ({ reque
 });
 
 test('should return 404 when updating a non-existent entity type', async ({ request }) => {
-    const res = await request.patch(`${etBase}/does-not-exist`, { data: { name: 'X' } });
+    const res = await request.patch(`${entityTypesUrl}/does-not-exist`, { data: { name: 'X' } });
     expect(res.status()).toBe(404);
 });
 
 test('should delete an entity type', async ({ request }) => {
-    const createRes = await request.post(etBase, { data: { name: 'ToDelete' } });
+    const createRes = await request.post(entityTypesUrl, { data: { name: 'ToDelete' } });
     const { data: created } = await createRes.json();
 
-    const deleteRes = await request.delete(`${etBase}/${created.id}`);
+    const deleteRes = await request.delete(`${entityTypesUrl}/${created.id}`);
     expect(deleteRes.status()).toBe(200);
 
-    const listRes = await request.get(etBase);
+    const listRes = await request.get(entityTypesUrl);
     const { data } = await listRes.json();
     expect(data.some((et: { id: string }) => et.id === created.id)).toBe(false);
 });
