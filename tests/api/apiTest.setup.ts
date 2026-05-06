@@ -1,4 +1,4 @@
-import { ExecuteQuery } from '../../src/lib/services/neo4jQueryExecutor';
+import { ExecuteQuery } from '../../src/lib/db/nodeRepository';
 import { test as setup } from '@playwright/test';
 import { projectName } from './apiTestConfig';
 

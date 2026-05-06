@@ -1,5 +1,5 @@
 import { error, json } from '@sveltejs/kit';
-import { DeleteNode } from '$lib/services/neo4jQueryExecutor';
+import { DeleteNode } from '$lib/db/nodeRepository';
 import { Validator } from 'fluentvalidation-ts';
 
 interface NodeDeleteRequest {

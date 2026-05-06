@@ -1,5 +1,5 @@
 import { error, json } from '@sveltejs/kit';
-import { CreateRelationship } from '$lib/services/neo4jQueryExecutor';
+import { CreateRelationship } from '$lib/db/nodeRepository';
 import { Validator } from 'fluentvalidation-ts';
 
 interface LinkCreateRequest {

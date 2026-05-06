@@ -1,5 +1,5 @@
 import { error, json } from '@sveltejs/kit';
-import { UpsertNode } from '$lib/services/neo4jQueryExecutor';
+import { UpsertNode } from '$lib/db/nodeRepository';
 import { Validator } from 'fluentvalidation-ts';
 
 interface NodeCreateRequest {

@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { ExecuteQuery } from '$lib/services/neo4jQueryExecutor';
+import { ExecuteQuery } from '$lib/db/nodeRepository';
 
 export async function GET() {
     //let result = await CreatedNode("MyProjectId", "Project", "VCEIP", {name: "VolcoCE IP", description: "VCEIP is a project about VCEIP, trucks and stuff"});
