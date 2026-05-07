@@ -29,7 +29,8 @@ export function entitiesToNodes(entities: Entity[], entityTypes: EntityType[]): 
 export function entityRelationshipToLink(relationship: EntityRelationship): Link {
     return {
         source: relationship.sourceEntityId,
-        target: relationship.targetEntityId
+        target: relationship.targetEntityId,
+        relationshipTypeId: relationship.relationshipTypeId
     };
 }
 

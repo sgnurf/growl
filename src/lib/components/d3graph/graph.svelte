@@ -45,9 +45,18 @@
         links: Link[];
         mode: GraphMode;
         onCreateLink?: (source: string, target: string) => void;
+        positionOverrides?: Record<string, { x: number; y: number }>;
     }
 
-    let { config, nodes, links, mode, onCreateLink }: Props = $props();
+    let { config, nodes, links, mode, onCreateLink, positionOverrides }: Props = $props();
+
+    export function getPositions(): Record<string, { x: number; y: number }> {
+        return Object.fromEntries(
+            simulatedNodes
+                .filter((n) => n.x !== undefined && n.y !== undefined)
+                .map((n) => [n.id, { x: n.x!, y: n.y! }])
+        );
+    }
 
     let svg: Element | undefined = $state();
     let viewBoxElement: Element | undefined = $state();
@@ -76,12 +85,15 @@
     // Simulation is created once — never inside $derived to avoid the state_unsafe_mutation error
     const simulation = d3.forceSimulation<SimulatedNode>().on('tick', () => {
         renderedNodes = [...simulatedNodes];
-        // Only update links from simulatedLinks while running: when stopped the link force is null
-        // so simulatedLinks still holds raw string IDs rather than resolved node objects.
-        if (mode === 'Simulation') {
-            //Retyping since at this point D3 will have replaced the ids with the actual nodes
-            renderedLinks = [...simulatedLinks] as unknown as SimulatedLink[];
-        }
+        // Resolve links from simulatedNodes by ID on every tick. The link force is only set when
+        // linkDistance is configured, so simulatedLinks often retains raw string IDs — rendering
+        // from them directly produces undefined source.id and each_key_duplicate errors.
+        renderedLinks = links
+            .map((l) => ({
+                source: simulatedNodes.find((n) => n.id === l.source),
+                target: simulatedNodes.find((n) => n.id === l.target)
+            }))
+            .filter((l): l is SimulatedLink => !!l.source && !!l.target);
     });
 
     $effect(() => {
@@ -109,6 +121,23 @@
             nodeIds,
             config
         );
+    });
+
+    $effect(() => {
+        const overrides = positionOverrides;
+        if (!overrides) return;
+        untrack(() => {
+            for (const node of simulatedNodes) {
+                const pos = overrides[node.id];
+                if (pos) {
+                    node.x = pos.x;
+                    node.y = pos.y;
+                    node.fx = pos.x;
+                    node.fy = pos.y;
+                }
+            }
+            simulation.alpha(0.01).restart();
+        });
     });
 
     let edgeDragSource: SimulatedNode | null = $state(null);

@@ -23,6 +23,10 @@ export default async function globalTeardown() {
                 `MATCH (rt:GrowlRelationshipType) WHERE rt.projectId IN $ids DETACH DELETE rt`,
                 { ids: testProjectIds }
             );
+            await executeQuery(
+                `MATCH (v:GrowlView) WHERE v.projectId IN $ids DETACH DELETE v`,
+                { ids: testProjectIds }
+            );
         }
 
         await executeQuery(

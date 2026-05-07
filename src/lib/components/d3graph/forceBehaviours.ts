@@ -14,31 +14,25 @@ export interface ForceBehaviour {
 
 export const simulationForceBehaviour: ForceBehaviour = {
     apply(simulation, nodes, simulatedLinks, nodeIds, config) {
-        if (config.linkDistance) {
-            simulation.force(
-                'link',
-                d3
-                    .forceLink(simulatedLinks)
-                    .id(({ index: i }) => nodeIds[i!])
-                    .distance(config.linkDistance)
-            );
-        } else {
-            simulation.force('link', null);
-        }
+        simulation.force(
+            'link',
+            d3
+                .forceLink(simulatedLinks)
+                .id(({ index: i }) => nodeIds[i!])
+                .distance(config.linkDistance ?? 80)
+        );
 
-        if (config.manyBodyForce) {
-            simulation.force(
-                'charge',
-                d3
-                    .forceManyBody()
-                    .strength(config.manyBodyForceStrength ?? -30)
-                    .distanceMax(config.manyBodyDistanceMax ?? 10000)
-            );
-        } else {
-            simulation.force('charge', null);
-        }
+        simulation.force(
+            'charge',
+            config.manyBodyForce === false
+                ? null
+                : d3
+                      .forceManyBody()
+                      .strength(config.manyBodyForceStrength ?? -200)
+                      .distanceMax(config.manyBodyDistanceMax ?? 10000)
+        );
 
-        simulation.force('center', config.centeringForce ? d3.forceCenter(0, 0) : null);
+        simulation.force('center', config.centeringForce === false ? null : d3.forceCenter(0, 0));
 
         // untrack: reading n.fixed through the reactive proxy inside an effect would re-trigger
         // the effect on every D3 tick (which mutates node properties), causing unwanted restarts.

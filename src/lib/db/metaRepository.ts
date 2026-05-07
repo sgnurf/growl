@@ -147,6 +147,7 @@ export async function deleteProject(id: string): Promise<boolean> {
     await executeQuery(`MATCH (e:GrowlEntity {projectId: $id}) DETACH DELETE e`, { id });
     await executeQuery(`MATCH (et:GrowlEntityType {projectId: $id}) DETACH DELETE et`, { id });
     await executeQuery(`MATCH (rt:GrowlRelationshipType {projectId: $id}) DETACH DELETE rt`, { id });
+    await executeQuery(`MATCH (v:GrowlView {projectId: $id}) DETACH DELETE v`, { id });
     const result = await executeQuery(`MATCH (p:GrowlProject {id: $id}) DETACH DELETE p`, { id });
     return result.summary.counters.updates().nodesDeleted > 0;
 }

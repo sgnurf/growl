@@ -13,6 +13,7 @@ export interface Node {
 export interface Link {
     source: string;
     target: string;
+    relationshipTypeId?: string;
 }
 
 export interface NodeComponentProps<T> {

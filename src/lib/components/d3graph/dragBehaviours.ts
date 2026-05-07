@@ -55,6 +55,8 @@ export function staticDragBehaviour(ctx: GraphContext): DragBehaviour {
         },
         dragged(e) {
             moveNodeWithZoom(e, ctx.svg());
+            e.subject.x = e.subject.fx;
+            e.subject.y = e.subject.fy;
             ctx.triggerRender();
         },
         dragended(_e) {}

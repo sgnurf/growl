@@ -1,23 +1,71 @@
 <script lang="ts">
     import { untrack } from 'svelte';
     import Graph from '$lib/components/d3graph/graph.svelte';
-    import type { Node, Link, GraphMode } from '$lib/components/d3graph/types';
+    import type { GraphMode } from '$lib/components/d3graph/types';
     import type { PageData } from './$types';
-    import { entityToNode, entitiesToNodes, entityRelationshipsToLinks } from '$lib/mappers/graphMapper';
+    import { entityToNode, entityRelationshipToLink } from '$lib/mappers/graphMapper';
     import type { EntityType, RelationshipType } from '$lib/schema/types';
+    import type { Entity, EntityRelationship } from '$lib/entities/types';
+    import type { View, NodePosition } from '$lib/views/types';
     import Button from '$lib/components/ui/Button.svelte';
 
     let { data }: { data: PageData } = $props();
 
-    // Local graph state — updated optimistically when entities/relationships are created.
-    // untrack() signals we intentionally want a one-time snapshot of the server data.
-    let nodes = $state<Node[]>(untrack(() => entitiesToNodes(data.entities, data.entityTypes)));
-    let links = $state<Link[]>(untrack(() => entityRelationshipsToLinks(data.relationships)));
+    // ── Server-sourced data mirrored as local state for optimistic updates ────
+    let allEntities = $state<Entity[]>(untrack(() => data.entities));
+    let allRelationships = $state<EntityRelationship[]>(untrack(() => data.relationships));
+    let views = $state<View[]>(untrack(() => data.views));
 
+    // ── View state ────────────────────────────────────────────────────────────
+    let activeViewId = $state<string | null>(null);
+    let positionOverrides = $state<Record<string, NodePosition> | undefined>(undefined);
+    let graphRef = $state<{ getPositions: () => Record<string, { x: number; y: number }> } | undefined>(undefined);
+    let isSavingLayout = $state(false);
+
+    const activeView = $derived(views.find((v) => v.id === activeViewId) ?? null);
+
+    function switchView(viewId: string | null) {
+        if (viewId === activeViewId) return;
+        activeViewId = viewId;
+        const view = viewId ? views.find((v) => v.id === viewId) : null;
+        if (view && Object.keys(view.positions).length > 0) {
+            positionOverrides = { ...view.positions };
+        } else {
+            positionOverrides = undefined;
+        }
+    }
+
+    // ── Graph filtering ───────────────────────────────────────────────────────
+    const visibleEntities = $derived(
+        !activeView || activeView.filter.entityTypeIds.length === 0
+            ? allEntities
+            : allEntities.filter((e) => activeView.filter.entityTypeIds.includes(e.entityTypeId))
+    );
+
+    const visibleEntityIdSet = $derived(new Set(visibleEntities.map((e) => e.id)));
+
+    const displayNodes = $derived(visibleEntities.map((e) => entityToNode(e, data.entityTypes)));
+
+    const displayLinks = $derived(
+        (() => {
+            let rels = allRelationships.filter(
+                (r) =>
+                    visibleEntityIdSet.has(r.sourceEntityId) &&
+                    visibleEntityIdSet.has(r.targetEntityId)
+            );
+            if (activeView && activeView.filter.relationshipTypeIds.length > 0) {
+                const allowed = new Set(activeView.filter.relationshipTypeIds);
+                rels = rels.filter((r) => allowed.has(r.relationshipTypeId));
+            }
+            return rels.map(entityRelationshipToLink);
+        })()
+    );
+
+    // ── Graph mode ────────────────────────────────────────────────────────────
     let graphMode = $state<GraphMode>('Simulation');
 
     // ── Side panel state ──────────────────────────────────────────────────────
-    type PanelView = 'default' | 'createEntity' | 'createRelationship';
+    type PanelView = 'default' | 'createEntity' | 'createRelationship' | 'createView';
     let panelView = $state<PanelView>('default');
 
     let selectedEntityType = $state<EntityType | null>(null);
@@ -57,7 +105,7 @@
             });
             const json = await response.json();
             if (!response.ok) { errorMessage = json.error?.message ?? 'Failed to create entity'; return; }
-            nodes = [...nodes, entityToNode(json.data, data.entityTypes)];
+            allEntities = [...allEntities, json.data as Entity];
             panelView = 'default';
         } finally {
             isSubmitting = false;
@@ -90,10 +138,7 @@
             });
             const json = await response.json();
             if (!response.ok) { errorMessage = json.error?.message ?? 'Failed to create relationship'; return; }
-            links = [...links, {
-                source: pendingRelationship.sourceEntityId,
-                target: pendingRelationship.targetEntityId
-            }];
+            allRelationships = [...allRelationships, json.data as EntityRelationship];
             pendingRelationship = null;
             panelView = 'default';
         } finally {
@@ -106,6 +151,94 @@
         pendingRelationship = null;
         errorMessage = null;
     }
+
+    // ── View creation ─────────────────────────────────────────────────────────
+    let newViewName = $state('');
+    let newViewEntityTypeFilter = $state<string[]>([]);
+    let newViewRelTypeFilter = $state<string[]>([]);
+
+    function openCreateView() {
+        newViewName = '';
+        newViewEntityTypeFilter = [];
+        newViewRelTypeFilter = [];
+        errorMessage = null;
+        panelView = 'createView';
+    }
+
+    function toggleEntityTypeFilter(id: string) {
+        newViewEntityTypeFilter = newViewEntityTypeFilter.includes(id)
+            ? newViewEntityTypeFilter.filter((x) => x !== id)
+            : [...newViewEntityTypeFilter, id];
+    }
+
+    function toggleRelTypeFilter(id: string) {
+        newViewRelTypeFilter = newViewRelTypeFilter.includes(id)
+            ? newViewRelTypeFilter.filter((x) => x !== id)
+            : [...newViewRelTypeFilter, id];
+    }
+
+    async function submitCreateView() {
+        if (!newViewName.trim()) return;
+        isSubmitting = true;
+        errorMessage = null;
+        try {
+            const response = await fetch(`/api/v1/projects/${data.project.id}/views`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newViewName.trim(),
+                    filter: {
+                        entityTypeIds: newViewEntityTypeFilter,
+                        relationshipTypeIds: newViewRelTypeFilter
+                    }
+                })
+            });
+            const json = await response.json();
+            if (!response.ok) { errorMessage = json.error?.message ?? 'Failed to create view'; return; }
+            views = [...views, json.data as View];
+            panelView = 'default';
+        } finally {
+            isSubmitting = false;
+        }
+    }
+
+    // ── View deletion ─────────────────────────────────────────────────────────
+    async function deleteView(viewId: string) {
+        const response = await fetch(`/api/v1/projects/${data.project.id}/views/${viewId}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            views = views.filter((v) => v.id !== viewId);
+            if (activeViewId === viewId) switchView(null);
+        }
+    }
+
+    // ── Layout save ───────────────────────────────────────────────────────────
+    async function saveLayout() {
+        if (!activeViewId || !graphRef) return;
+        isSavingLayout = true;
+        try {
+            const allPositions = graphRef.getPositions();
+            const positions: Record<string, NodePosition> = {};
+            for (const entityId of visibleEntityIdSet) {
+                if (allPositions[entityId]) positions[entityId] = allPositions[entityId];
+            }
+            const response = await fetch(
+                `/api/v1/projects/${data.project.id}/views/${activeViewId}/positions`,
+                {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ positions })
+                }
+            );
+            const json = await response.json();
+            if (response.ok) {
+                views = views.map((v) => (v.id === activeViewId ? (json.data as View) : v));
+            }
+        } finally {
+            isSavingLayout = false;
+        }
+    }
 </script>
 
 <svelte:head>
@@ -115,29 +248,81 @@
 <div class="flex h-full">
     <!-- ── Graph canvas ──────────────────────────────────────────────────── -->
     <div
-        class="flex-1 overflow-hidden bg-gray-50"
+        class="flex-1 overflow-hidden bg-gray-50 relative"
         bind:clientWidth={containerWidth}
         bind:clientHeight={containerHeight}
     >
         {#if containerWidth > 0 && containerHeight > 0}
             <Graph
+                bind:this={graphRef}
                 config={{ width: containerWidth, height: containerHeight }}
-                {nodes}
-                {links}
+                nodes={displayNodes}
+                links={displayLinks}
                 mode={graphMode}
+                {positionOverrides}
                 onCreateLink={handleCreateLink}
             />
         {/if}
 
-        {#if nodes.length === 0}
+        {#if displayNodes.length === 0}
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p class="text-gray-400 text-sm">No entities yet — add some from the panel →</p>
+                <p class="text-gray-400 text-sm">
+                    {allEntities.length === 0
+                        ? 'No entities yet — add some from the panel →'
+                        : 'No entities match this view\'s filter.'}
+                </p>
             </div>
         {/if}
     </div>
 
     <!-- ── Side panel ───────────────────────────────────────────────────── -->
     <div class="w-64 shrink-0 border-l bg-white flex flex-col overflow-hidden">
+
+        <!-- Views section -->
+        <div class="p-3 border-b">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Views</span>
+                <Button variant="ghost" onclick={openCreateView}>+ New</Button>
+            </div>
+            <ul class="flex flex-col gap-0.5">
+                <li>
+                    <button
+                        onclick={() => switchView(null)}
+                        class="w-full text-left text-xs px-2 py-1 rounded transition-colors"
+                        class:bg-black={activeViewId === null}
+                        class:text-white={activeViewId === null}
+                        class:hover:bg-gray-100={activeViewId !== null}
+                    >All entities</button>
+                </li>
+                {#each views as view (view.id)}
+                    <li class="flex items-center gap-1">
+                        <button
+                            onclick={() => switchView(view.id)}
+                            class="flex-1 text-left text-xs px-2 py-1 rounded truncate transition-colors"
+                            class:bg-black={activeViewId === view.id}
+                            class:text-white={activeViewId === view.id}
+                            class:hover:bg-gray-100={activeViewId !== view.id}
+                        >{view.name}</button>
+                        <button
+                            onclick={() => deleteView(view.id)}
+                            class="text-gray-300 hover:text-red-500 text-xs px-1 shrink-0 transition-colors"
+                            title="Delete view"
+                        >✕</button>
+                    </li>
+                {/each}
+            </ul>
+            {#if activeViewId !== null}
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onclick={saveLayout}
+                    disabled={isSavingLayout}
+                    class="w-full mt-2 justify-center"
+                >
+                    {isSavingLayout ? 'Saving…' : 'Save layout'}
+                </Button>
+            {/if}
+        </div>
 
         <!-- Mode controls -->
         <div class="p-3 border-b">
@@ -162,7 +347,70 @@
         <!-- Panel body -->
         <div class="flex-1 overflow-y-auto">
 
-            {#if panelView === 'createEntity' && selectedEntityType}
+            {#if panelView === 'createView'}
+                <!-- ── Create view form ──────────────────────────────────── -->
+                <div class="p-4 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold text-sm">New View</h3>
+                        <button onclick={cancelPanel} class="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+                    </div>
+
+                    {#if errorMessage}
+                        <p class="text-xs text-red-500">{errorMessage}</p>
+                    {/if}
+
+                    <div class="flex flex-col gap-1">
+                        <label for="view-name" class="text-xs font-medium text-gray-600">Name</label>
+                        <input
+                            id="view-name"
+                            type="text"
+                            placeholder="e.g. Frontend Services"
+                            bind:value={newViewName}
+                            class="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                    </div>
+
+                    {#if data.entityTypes.length > 0}
+                        <div>
+                            <p class="text-xs font-medium text-gray-600 mb-1">Entity types (empty = all)</p>
+                            {#each data.entityTypes as et}
+                                <label class="flex items-center gap-2 text-xs py-0.5 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newViewEntityTypeFilter.includes(et.id)}
+                                        onchange={() => toggleEntityTypeFilter(et.id)}
+                                    />
+                                    {et.name}
+                                </label>
+                            {/each}
+                        </div>
+                    {/if}
+
+                    {#if data.relationshipTypes.length > 0}
+                        <div>
+                            <p class="text-xs font-medium text-gray-600 mb-1">Relationship types (empty = all)</p>
+                            {#each data.relationshipTypes as rt}
+                                <label class="flex items-center gap-2 text-xs py-0.5 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newViewRelTypeFilter.includes(rt.id)}
+                                        onchange={() => toggleRelTypeFilter(rt.id)}
+                                    />
+                                    {rt.name}
+                                </label>
+                            {/each}
+                        </div>
+                    {/if}
+
+                    <div class="flex gap-2 mt-1">
+                        <Button onclick={submitCreateView} disabled={isSubmitting || !newViewName.trim()} class="flex-1">
+                            Create view
+                        </Button>
+                        <Button variant="secondary" onclick={cancelPanel}>Cancel</Button>
+                    </div>
+                </div>
+
+            {:else if panelView === 'createEntity' && selectedEntityType}
                 <!-- ── Create entity form ────────────────────────────────── -->
                 <div class="p-4 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
