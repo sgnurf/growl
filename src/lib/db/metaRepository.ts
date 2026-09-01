@@ -10,6 +10,9 @@ import type {
     Field
 } from '$lib/schema/types';
 import type { User } from '$lib/users/types';
+import { createRepresentationLibrary, updateRepresentationLibrary } from './representationLibraryRepository';
+import { defaultShapeConfigurations } from '$lib/components/d3graph/graphNodes/shapeConfiguration';
+import type { EntityRepresentation, RelationshipRepresentation } from '$lib/representations/types';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,7 +57,8 @@ function mapEntityType(node: { properties: Record<string, string> }): EntityType
         projectId: et.projectId,
         name: et.name,
         description: et.description ?? '',
-        fields: parseFields(et.fields)
+        fields: parseFields(et.fields),
+        representationId: et.representationId ?? null
     };
 }
 
@@ -67,8 +71,32 @@ function mapRelationshipType(node: { properties: Record<string, string> }): Rela
         description: rt.description ?? '',
         sourceEntityTypeId: rt.sourceEntityTypeId ?? null,
         targetEntityTypeId: rt.targetEntityTypeId ?? null,
-        fields: parseFields(rt.fields)
+        fields: parseFields(rt.fields),
+        representationId: rt.representationId ?? null
     };
+}
+
+function defaultSeedEntityRepresentations(): EntityRepresentation[] {
+    return defaultShapeConfigurations.map((shape) => ({
+        id: shape.id,
+        name: shape.name,
+        shapeType: shape.shapeType,
+        shapeProps: shape.shapeProps,
+        labelFieldName: shape.labelPropertyName
+    }));
+}
+
+function defaultSeedRelationshipRepresentations(): RelationshipRepresentation[] {
+    return [
+        {
+            id: uuid(),
+            name: 'Default Line',
+            lineStyle: 'solid',
+            color: '#999999',
+            arrowhead: 'none',
+            labelFieldName: null
+        }
+    ];
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────
@@ -123,7 +151,15 @@ export async function createProject(input: CreateProjectInput, user: User): Prom
             updatedAt: ts
         }
     );
-    return { id, name: input.name, description: input.description ?? '', createdAt: ts, updatedAt: ts };
+    const project = { id, name: input.name, description: input.description ?? '', createdAt: ts, updatedAt: ts };
+
+    const library = await createRepresentationLibrary(id, { name: 'Default' });
+    await updateRepresentationLibrary(library.id, {
+        entityRepresentations: defaultSeedEntityRepresentations(),
+        relationshipRepresentations: defaultSeedRelationshipRepresentations()
+    });
+
+    return project;
 }
 
 export async function updateProject(id: string, input: UpdateProjectInput): Promise<Project | null> {
@@ -148,6 +184,7 @@ export async function deleteProject(id: string): Promise<boolean> {
     await executeQuery(`MATCH (et:GrowlEntityType {projectId: $id}) DETACH DELETE et`, { id });
     await executeQuery(`MATCH (rt:GrowlRelationshipType {projectId: $id}) DETACH DELETE rt`, { id });
     await executeQuery(`MATCH (v:GrowlView {projectId: $id}) DETACH DELETE v`, { id });
+    await executeQuery(`MATCH (l:GrowlRepresentationLibrary {projectId: $id}) DETACH DELETE l`, { id });
     const result = await executeQuery(`MATCH (p:GrowlProject {id: $id}) DETACH DELETE p`, { id });
     return result.summary.counters.updates().nodesDeleted > 0;
 }
@@ -177,18 +214,22 @@ export async function createEntityType(
 ): Promise<EntityType> {
     const id = uuid();
     const fieldsJson = fieldsToJson(input.fields ?? []);
+    const representationId = input.representationId ?? null;
     await executeQuery(
         `MATCH (p:GrowlProject {id: $projectId})
          CREATE (et:GrowlEntityType {
            id: $id, projectId: $projectId, name: $name,
-           description: $description, fields: $fields
+           description: $description, fields: $fields, representationId: $representationId
          })
          CREATE (et)-[:BELONGS_TO]->(p)`,
-        { projectId, id, name: input.name, description: input.description ?? '', fields: fieldsJson }
+        {
+            projectId, id, name: input.name, description: input.description ?? '',
+            fields: fieldsJson, representationId
+        }
     );
     return {
         id, projectId, name: input.name, description: input.description ?? '',
-        fields: parseFields(fieldsJson)
+        fields: parseFields(fieldsJson), representationId
     };
 }
 
@@ -202,6 +243,7 @@ export async function updateEntityType(
     if (input.name !== undefined) { setParts.push('et.name = $name'); params.name = input.name; }
     if (input.description !== undefined) { setParts.push('et.description = $description'); params.description = input.description; }
     if (input.fields !== undefined) { setParts.push('et.fields = $fields'); params.fields = JSON.stringify(input.fields); }
+    if ('representationId' in input) { setParts.push('et.representationId = $representationId'); params.representationId = input.representationId ?? null; }
 
     if (!setParts.length) return getEntityType(id);
 
@@ -246,27 +288,28 @@ export async function createRelationshipType(
 ): Promise<RelationshipType> {
     const id = uuid();
     const fieldsJson = fieldsToJson(input.fields ?? []);
+    const representationId = input.representationId ?? null;
     await executeQuery(
         `MATCH (p:GrowlProject {id: $projectId})
          CREATE (rt:GrowlRelationshipType {
            id: $id, projectId: $projectId, name: $name, description: $description,
            sourceEntityTypeId: $sourceEntityTypeId,
            targetEntityTypeId: $targetEntityTypeId,
-           fields: $fields
+           fields: $fields, representationId: $representationId
          })
          CREATE (rt)-[:BELONGS_TO]->(p)`,
         {
             projectId, id, name: input.name, description: input.description ?? '',
             sourceEntityTypeId: input.sourceEntityTypeId ?? null,
             targetEntityTypeId: input.targetEntityTypeId ?? null,
-            fields: fieldsJson
+            fields: fieldsJson, representationId
         }
     );
     return {
         id, projectId, name: input.name, description: input.description ?? '',
         sourceEntityTypeId: input.sourceEntityTypeId ?? null,
         targetEntityTypeId: input.targetEntityTypeId ?? null,
-        fields: parseFields(fieldsJson)
+        fields: parseFields(fieldsJson), representationId
     };
 }
 
@@ -282,6 +325,7 @@ export async function updateRelationshipType(
     if ('sourceEntityTypeId' in input) { setParts.push('rt.sourceEntityTypeId = $sourceEntityTypeId'); params.sourceEntityTypeId = input.sourceEntityTypeId ?? null; }
     if ('targetEntityTypeId' in input) { setParts.push('rt.targetEntityTypeId = $targetEntityTypeId'); params.targetEntityTypeId = input.targetEntityTypeId ?? null; }
     if (input.fields !== undefined) { setParts.push('rt.fields = $fields'); params.fields = JSON.stringify(input.fields); }
+    if ('representationId' in input) { setParts.push('rt.representationId = $representationId'); params.representationId = input.representationId ?? null; }
 
     if (!setParts.length) return getRelationshipType(id);
 

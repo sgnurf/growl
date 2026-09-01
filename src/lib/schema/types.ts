@@ -13,18 +13,21 @@ export interface EntityType {
     name: string;
     description: string;
     fields: Field[];
+    representationId: string | null;
 }
 
 export interface CreateEntityTypeInput {
     name: string;
     description?: string;
     fields?: Array<Omit<Field, 'id'>>;
+    representationId?: string | null;
 }
 
 export interface UpdateEntityTypeInput {
     name?: string;
     description?: string;
     fields?: Field[];
+    representationId?: string | null;
 }
 
 export interface RelationshipType {
@@ -35,6 +38,7 @@ export interface RelationshipType {
     sourceEntityTypeId: string | null;
     targetEntityTypeId: string | null;
     fields: Field[];
+    representationId: string | null;
 }
 
 export interface CreateRelationshipTypeInput {
@@ -43,6 +47,7 @@ export interface CreateRelationshipTypeInput {
     sourceEntityTypeId?: string;
     targetEntityTypeId?: string;
     fields?: Array<Omit<Field, 'id'>>;
+    representationId?: string | null;
 }
 
 export interface UpdateRelationshipTypeInput {
@@ -51,4 +56,5 @@ export interface UpdateRelationshipTypeInput {
     sourceEntityTypeId?: string | null;
     targetEntityTypeId?: string | null;
     fields?: Field[];
+    representationId?: string | null;
 }
