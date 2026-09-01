@@ -3,6 +3,7 @@ import { testName } from '../../testConfig';
 
 let projectId: string;
 let entityTypesUrl: string;
+let representationId: string;
 
 test.beforeAll(async ({ request }) => {
     const res = await request.post('/api/v1/projects', {
@@ -11,6 +12,25 @@ test.beforeAll(async ({ request }) => {
     const { data } = await res.json();
     projectId = data.id;
     entityTypesUrl = `/api/v1/projects/${projectId}/entity-types`;
+
+    const librariesUrl = `/api/v1/projects/${projectId}/representation-libraries`;
+    const libraryRes = await request.post(librariesUrl, { data: { name: 'Test Library' } });
+    const { data: library } = await libraryRes.json();
+    const updateRes = await request.patch(`${librariesUrl}/${library.id}`, {
+        data: {
+            entityRepresentations: [
+                {
+                    id: crypto.randomUUID(),
+                    name: 'Test Shape',
+                    shapeType: 'circle',
+                    shapeProps: { size: 10, color: 'blue' },
+                    labelFieldName: 'name'
+                }
+            ]
+        }
+    });
+    const { data: updatedLibrary } = await updateRes.json();
+    representationId = updatedLibrary.entityRepresentations[0].id;
 });
 
 test('should create an entity type', async ({ request }) => {
@@ -83,6 +103,34 @@ test('should update an entity type name, description and fields', async ({ reque
 test('should return 404 when updating a non-existent entity type', async ({ request }) => {
     const res = await request.patch(`${entityTypesUrl}/does-not-exist`, { data: { name: 'X' } });
     expect(res.status()).toBe(404);
+});
+
+test('should default representationId to null when not provided', async ({ request }) => {
+    const res = await request.post(entityTypesUrl, { data: { name: 'Unstyled' } });
+    const { data } = await res.json();
+    expect(data.representationId).toBeNull();
+});
+
+test('should create an entity type with a representationId', async ({ request }) => {
+    const res = await request.post(entityTypesUrl, { data: { name: 'Styled', representationId } });
+    expect(res.status()).toBe(201);
+    const { data } = await res.json();
+    expect(data.representationId).toBe(representationId);
+});
+
+test('should set and clear an entity type representationId', async ({ request }) => {
+    const createRes = await request.post(entityTypesUrl, { data: { name: 'ToRestyle' } });
+    const { data: created } = await createRes.json();
+
+    const setRes = await request.patch(`${entityTypesUrl}/${created.id}`, { data: { representationId } });
+    const { data: withRepresentation } = await setRes.json();
+    expect(withRepresentation.representationId).toBe(representationId);
+
+    const clearRes = await request.patch(`${entityTypesUrl}/${created.id}`, {
+        data: { representationId: null }
+    });
+    const { data: cleared } = await clearRes.json();
+    expect(cleared.representationId).toBeNull();
 });
 
 test('should delete an entity type', async ({ request }) => {

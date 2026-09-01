@@ -7,7 +7,8 @@ export async function PATCH({ params, request }) {
     const updated = await updateEntityType(params.etid, {
         name: body.name?.trim(),
         description: body.description?.trim(),
-        fields: body.fields
+        fields: body.fields,
+        ...('representationId' in body ? { representationId: body.representationId } : {})
     });
     if (!updated) return json(err('Entity type not found'), { status: 404 });
     return json(ok(updated));

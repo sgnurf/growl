@@ -15,7 +15,8 @@ export async function POST({ params, request }) {
     const entityType = await createEntityType(params.id, {
         name: body.name.trim(),
         description: body.description?.trim(),
-        fields: body.fields ?? []
+        fields: body.fields ?? [],
+        representationId: body.representationId
     });
     return json(ok(entityType), { status: 201 });
 }

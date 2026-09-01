@@ -5,6 +5,7 @@ let projectId: string;
 let sourceEntityTypeId: string;
 let targetEntityTypeId: string;
 let relationshipTypesUrl: string;
+let representationId: string;
 
 test.beforeAll(async ({ request }) => {
     const projectRes = await request.post('/api/v1/projects', {
@@ -19,6 +20,26 @@ test.beforeAll(async ({ request }) => {
     const targetRes = await request.post(entityTypesUrl, { data: { name: 'Software System' } });
     sourceEntityTypeId = (await sourceRes.json()).data.id;
     targetEntityTypeId = (await targetRes.json()).data.id;
+
+    const librariesUrl = `/api/v1/projects/${projectId}/representation-libraries`;
+    const libraryRes = await request.post(librariesUrl, { data: { name: 'Test Library' } });
+    const { data: library } = await libraryRes.json();
+    const updateRes = await request.patch(`${librariesUrl}/${library.id}`, {
+        data: {
+            relationshipRepresentations: [
+                {
+                    id: crypto.randomUUID(),
+                    name: 'Test Line',
+                    lineStyle: 'dashed',
+                    color: 'red',
+                    arrowhead: 'arrow',
+                    labelFieldName: null
+                }
+            ]
+        }
+    });
+    const { data: updatedLibrary } = await updateRes.json();
+    representationId = updatedLibrary.relationshipRepresentations[0].id;
 });
 
 test('should create a relationship type', async ({ request }) => {
@@ -99,6 +120,38 @@ test('should update a relationship type', async ({ request }) => {
 test('should return 404 when updating a non-existent relationship type', async ({ request }) => {
     const res = await request.patch(`${relationshipTypesUrl}/does-not-exist`, { data: { name: 'X' } });
     expect(res.status()).toBe(404);
+});
+
+test('should default representationId to null when not provided', async ({ request }) => {
+    const res = await request.post(relationshipTypesUrl, { data: { name: 'Unstyled Relationship' } });
+    const { data } = await res.json();
+    expect(data.representationId).toBeNull();
+});
+
+test('should create a relationship type with a representationId', async ({ request }) => {
+    const res = await request.post(relationshipTypesUrl, {
+        data: { name: 'Styled Relationship', representationId }
+    });
+    expect(res.status()).toBe(201);
+    const { data } = await res.json();
+    expect(data.representationId).toBe(representationId);
+});
+
+test('should set and clear a relationship type representationId', async ({ request }) => {
+    const createRes = await request.post(relationshipTypesUrl, { data: { name: 'ToRestyle' } });
+    const { data: created } = await createRes.json();
+
+    const setRes = await request.patch(`${relationshipTypesUrl}/${created.id}`, {
+        data: { representationId }
+    });
+    const { data: withRepresentation } = await setRes.json();
+    expect(withRepresentation.representationId).toBe(representationId);
+
+    const clearRes = await request.patch(`${relationshipTypesUrl}/${created.id}`, {
+        data: { representationId: null }
+    });
+    const { data: cleared } = await clearRes.json();
+    expect(cleared.representationId).toBeNull();
 });
 
 test('should delete a relationship type', async ({ request }) => {

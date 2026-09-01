@@ -8,11 +8,7 @@ testing.
 
 ## Remaining roadmap
 
-Representations still needs a test coverage pass: API tests for representation
-library CRUD, entity/relationship type `representationId` coverage, and a
-`graphMapper`/`graph.svelte` unit test for a dashed/arrowhead link.
-
-Beyond that, the following phases from the original product plan are still ahead:
+The following phases from the original product plan are still ahead:
 
 - Project Templates; rich label templates (multi-field, bold/italic, multi-line);
   per-view representation overrides
@@ -27,7 +23,7 @@ Picked up during manual testing — not urgent, but worth addressing eventually:
   specific view appears to also move entities in the unfiltered "All entities" view.
   Likely cause: `positionOverrides` sets `fx`/`fy` directly on the shared
   `SimulatedNode` objects in `graph.svelte`, but switching back to no override (`All
-  entities`) never clears those pinned coordinates — they're only ever set, never
+entities`) never clears those pinned coordinates — they're only ever set, never
   reset to `null`.
 - **Simulation/Static mode toggle is confusing.** Consider replacing the persistent
   two-mode toggle with a single one-click "Arrange" action that runs the simulation
@@ -37,7 +33,7 @@ Picked up during manual testing — not urgent, but worth addressing eventually:
   library at a time. Consider an accordion view showing all libraries and their
   representations at once, so picking one doesn't require hopping between pages.
 - **No way to edit or delete an entity/relationship.** The graph page's side panel only
-  supports *creating* entities and relationships — there's no UI yet to edit field
+  supports _creating_ entities and relationships — there's no UI yet to edit field
   values or delete an existing one.
 - **Table view for entities (and relationships?).** A tabular/grid representation of a
   project's entities, as an alternative to the graph canvas — useful for bulk

@@ -9,7 +9,8 @@ export async function PATCH({ params, request }) {
         description: body.description?.trim(),
         sourceEntityTypeId: body.sourceEntityTypeId,
         targetEntityTypeId: body.targetEntityTypeId,
-        fields: body.fields
+        fields: body.fields,
+        ...('representationId' in body ? { representationId: body.representationId } : {})
     });
     if (!updated) return json(err('Relationship type not found'), { status: 404 });
     return json(ok(updated));

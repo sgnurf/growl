@@ -17,7 +17,8 @@ export async function POST({ params, request }) {
         description: body.description?.trim(),
         sourceEntityTypeId: body.sourceEntityTypeId,
         targetEntityTypeId: body.targetEntityTypeId,
-        fields: body.fields ?? []
+        fields: body.fields ?? [],
+        representationId: body.representationId
     });
     return json(ok(relType), { status: 201 });
 }

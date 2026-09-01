@@ -27,6 +27,10 @@ export default async function globalTeardown() {
                 `MATCH (v:GrowlView) WHERE v.projectId IN $ids DETACH DELETE v`,
                 { ids: testProjectIds }
             );
+            await executeQuery(
+                `MATCH (l:GrowlRepresentationLibrary) WHERE l.projectId IN $ids DETACH DELETE l`,
+                { ids: testProjectIds }
+            );
         }
 
         await executeQuery(
