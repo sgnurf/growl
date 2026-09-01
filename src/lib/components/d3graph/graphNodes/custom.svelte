@@ -1,11 +1,11 @@
 <script lang="ts">
     interface Props {
-        symbol: string;
+        symbol?: string;
         labelPropertyName: string;
         data?: any;
     }
 
-    let { symbol, labelPropertyName, data = {} }: Props = $props();
+    let { symbol = '', labelPropertyName, data = {} }: Props = $props();
 </script>
 
 <g

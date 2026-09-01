@@ -6,7 +6,8 @@
 
     const navItems = $derived([
         { label: 'Graph', href: `/projects/${data.project.id}` },
-        { label: 'Schema', href: `/projects/${data.project.id}/schema` }
+        { label: 'Schema', href: `/projects/${data.project.id}/schema` },
+        { label: 'Representations', href: `/projects/${data.project.id}/representations` }
     ]);
 </script>
 

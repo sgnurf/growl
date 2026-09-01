@@ -1,5 +1,8 @@
 import { json } from '@sveltejs/kit';
-import { listRepresentationLibraries, createRepresentationLibrary } from '$lib/db/representationLibraryRepository';
+import {
+    listRepresentationLibraries,
+    createRepresentationLibrary
+} from '$lib/db/representationLibraryRepository';
 import { ok, err } from '$lib/api/types';
 
 export async function GET({ params }) {

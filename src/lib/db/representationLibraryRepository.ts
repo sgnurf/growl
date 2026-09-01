@@ -44,20 +44,26 @@ function parseRelationshipRepresentations(
     }
 }
 
-function mapRepresentationLibrary(node: { properties: Record<string, string> }): RepresentationLibrary {
+function mapRepresentationLibrary(node: {
+    properties: Record<string, string>;
+}): RepresentationLibrary {
     const l = node.properties;
     return {
         id: l.id,
         projectId: l.projectId,
         name: l.name,
         entityRepresentations: parseEntityRepresentations(l.entityRepresentations),
-        relationshipRepresentations: parseRelationshipRepresentations(l.relationshipRepresentations),
+        relationshipRepresentations: parseRelationshipRepresentations(
+            l.relationshipRepresentations
+        ),
         createdAt: l.createdAt,
         updatedAt: l.updatedAt
     };
 }
 
-export async function listRepresentationLibraries(projectId: string): Promise<RepresentationLibrary[]> {
+export async function listRepresentationLibraries(
+    projectId: string
+): Promise<RepresentationLibrary[]> {
     const result = await executeQuery(
         `MATCH (l:GrowlRepresentationLibrary {projectId: $projectId}) RETURN l ORDER BY l.createdAt`,
         { projectId }
@@ -66,10 +72,9 @@ export async function listRepresentationLibraries(projectId: string): Promise<Re
 }
 
 export async function getRepresentationLibrary(id: string): Promise<RepresentationLibrary | null> {
-    const result = await executeQuery(
-        `MATCH (l:GrowlRepresentationLibrary {id: $id}) RETURN l`,
-        { id }
-    );
+    const result = await executeQuery(`MATCH (l:GrowlRepresentationLibrary {id: $id}) RETURN l`, {
+        id
+    });
     if (!result.records.length) return null;
     return mapRepresentationLibrary(result.records[0].get('l'));
 }
