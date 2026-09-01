@@ -44,7 +44,13 @@
 
     const visibleEntityIdSet = $derived(new Set(visibleEntities.map((e) => e.id)));
 
-    const displayNodes = $derived(visibleEntities.map((e) => entityToNode(e, data.entityTypes)));
+    const entityRepresentations = $derived(
+        data.representationLibraries.flatMap((library) => library.entityRepresentations)
+    );
+
+    const displayNodes = $derived(
+        visibleEntities.map((e) => entityToNode(e, data.entityTypes, entityRepresentations))
+    );
 
     const displayLinks = $derived(
         (() => {
