@@ -10,17 +10,19 @@ import {
     updateRelationshipType,
     deleteRelationshipType
 } from '$lib/db/metaRepository';
+import { listRepresentationLibraries } from '$lib/db/representationLibraryRepository';
 import { fail, error } from '@sveltejs/kit';
 import type { Field } from '$lib/schema/types';
 
 export const load: PageServerLoad = async ({ params }) => {
-    const [project, entityTypes, relationshipTypes] = await Promise.all([
+    const [project, entityTypes, relationshipTypes, representationLibraries] = await Promise.all([
         getProject(params.id),
         listEntityTypes(params.id),
-        listRelationshipTypes(params.id)
+        listRelationshipTypes(params.id),
+        listRepresentationLibraries(params.id)
     ]);
     if (!project) error(404, 'Project not found');
-    return { project, entityTypes, relationshipTypes };
+    return { project, entityTypes, relationshipTypes, representationLibraries };
 };
 
 function parseFields(raw: string | null): Field[] {
@@ -38,13 +40,15 @@ export const actions: Actions = {
         const name = (data.get('name') as string)?.trim();
         const description = (data.get('description') as string)?.trim();
         const fieldsRaw = data.get('fields') as string | null;
+        const representationId = (data.get('representationId') as string) || null;
 
         if (!name) return fail(400, { error: 'Name is required' });
 
         await createEntityType(params.id, {
             name,
             description,
-            fields: parseFields(fieldsRaw)
+            fields: parseFields(fieldsRaw),
+            representationId
         });
     },
 
@@ -54,11 +58,17 @@ export const actions: Actions = {
         const name = (data.get('name') as string)?.trim();
         const description = (data.get('description') as string)?.trim();
         const fieldsRaw = data.get('fields') as string | null;
+        const representationId = (data.get('representationId') as string) || null;
 
         if (!id) return fail(400, { error: 'Missing id' });
         if (!name) return fail(400, { error: 'Name is required' });
 
-        await updateEntityType(id, { name, description, fields: parseFields(fieldsRaw) });
+        await updateEntityType(id, {
+            name,
+            description,
+            fields: parseFields(fieldsRaw),
+            representationId
+        });
     },
 
     deleteEntityType: async ({ request }) => {
@@ -75,6 +85,7 @@ export const actions: Actions = {
         const sourceEntityTypeId = (data.get('sourceEntityTypeId') as string) || undefined;
         const targetEntityTypeId = (data.get('targetEntityTypeId') as string) || undefined;
         const fieldsRaw = data.get('fields') as string | null;
+        const representationId = (data.get('representationId') as string) || null;
 
         if (!name) return fail(400, { error: 'Name is required' });
 
@@ -83,7 +94,8 @@ export const actions: Actions = {
             description,
             sourceEntityTypeId,
             targetEntityTypeId,
-            fields: parseFields(fieldsRaw)
+            fields: parseFields(fieldsRaw),
+            representationId
         });
     },
 
@@ -95,6 +107,7 @@ export const actions: Actions = {
         const sourceEntityTypeId = (data.get('sourceEntityTypeId') as string) || null;
         const targetEntityTypeId = (data.get('targetEntityTypeId') as string) || null;
         const fieldsRaw = data.get('fields') as string | null;
+        const representationId = (data.get('representationId') as string) || null;
 
         if (!id) return fail(400, { error: 'Missing id' });
         if (!name) return fail(400, { error: 'Name is required' });
@@ -104,7 +117,8 @@ export const actions: Actions = {
             description,
             sourceEntityTypeId,
             targetEntityTypeId,
-            fields: parseFields(fieldsRaw)
+            fields: parseFields(fieldsRaw),
+            representationId
         });
     },
 

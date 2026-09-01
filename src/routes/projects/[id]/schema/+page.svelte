@@ -81,6 +81,24 @@
     }
 
     const fieldTypes = ['string', 'int', 'boolean', 'date', 'url'] as const;
+
+    let entityRepresentationOptions = $derived(
+        data.representationLibraries.flatMap((library) =>
+            library.entityRepresentations.map((rep) => ({
+                id: rep.id,
+                label: `${library.name} — ${rep.name}`
+            }))
+        )
+    );
+
+    let relationshipRepresentationOptions = $derived(
+        data.representationLibraries.flatMap((library) =>
+            library.relationshipRepresentations.map((rep) => ({
+                id: rep.id,
+                label: `${library.name} — ${rep.name}`
+            }))
+        )
+    );
 </script>
 
 <svelte:head>
@@ -134,6 +152,19 @@
                             placeholder="Optional"
                         />
                     </FormField>
+                </div>
+
+                <div class="flex flex-col gap-2 max-w-sm">
+                    <label class="text-sm font-medium" for="et-representation">Representation</label>
+                    <select
+                        id="et-representation" name="representationId"
+                        class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    >
+                        <option value="">Default (auto)</option>
+                        {#each entityRepresentationOptions as opt}
+                            <option value={opt.id} selected={editingEntityType?.representationId === opt.id}>{opt.label}</option>
+                        {/each}
+                    </select>
                 </div>
 
                 <div>
@@ -191,6 +222,9 @@
                                         {et.fields.map(f => `${f.name}: ${f.type}${f.required ? '*' : ''}`).join(' · ')}
                                     </p>
                                 {/if}
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Representation: {entityRepresentationOptions.find((o) => o.id === et.representationId)?.label ?? 'Default (auto)'}
+                                </p>
                             </div>
                             <div class="flex gap-2 shrink-0">
                                 <Button variant="ghost" onclick={() => openEditEntityType(et)}>Edit</Button>
@@ -273,6 +307,19 @@
                     </div>
                 </div>
 
+                <div class="flex flex-col gap-2 max-w-sm">
+                    <label class="text-sm font-medium" for="rt-representation">Representation</label>
+                    <select
+                        id="rt-representation" name="representationId"
+                        class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    >
+                        <option value="">Default (auto)</option>
+                        {#each relationshipRepresentationOptions as opt}
+                            <option value={opt.id} selected={editingRelType?.representationId === opt.id}>{opt.label}</option>
+                        {/each}
+                    </select>
+                </div>
+
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-sm font-medium">Fields</span>
@@ -334,6 +381,9 @@
                                     {#if rt.fields.length > 0}
                                         · {rt.fields.map(f => `${f.name}: ${f.type}${f.required ? '*' : ''}`).join(' · ')}
                                     {/if}
+                                </p>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Representation: {relationshipRepresentationOptions.find((o) => o.id === rt.representationId)?.label ?? 'Default (auto)'}
                                 </p>
                             </div>
                             <div class="flex gap-2 shrink-0">
