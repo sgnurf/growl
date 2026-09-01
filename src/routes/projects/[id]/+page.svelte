@@ -48,6 +48,10 @@
         data.representationLibraries.flatMap((library) => library.entityRepresentations)
     );
 
+    const relationshipRepresentations = $derived(
+        data.representationLibraries.flatMap((library) => library.relationshipRepresentations)
+    );
+
     const displayNodes = $derived(
         visibleEntities.map((e) => entityToNode(e, data.entityTypes, entityRepresentations))
     );
@@ -63,7 +67,9 @@
                 const allowed = new Set(activeView.filter.relationshipTypeIds);
                 rels = rels.filter((r) => allowed.has(r.relationshipTypeId));
             }
-            return rels.map(entityRelationshipToLink);
+            return rels.map((r) =>
+                entityRelationshipToLink(r, data.relationshipTypes, relationshipRepresentations)
+            );
         })()
     );
 

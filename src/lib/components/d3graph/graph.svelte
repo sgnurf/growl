@@ -9,7 +9,10 @@
         GraphMode,
         SimulatedNode,
         SimulatedLink,
-        GraphConfiguration
+        GraphConfiguration,
+        LinkRepresentation,
+        LinkLineStyle,
+        LinkArrowhead
     } from './types';
     import type { DragBehaviourFactory } from './dragBehaviours';
     import type { ForceBehaviour } from './forceBehaviours';
@@ -91,7 +94,9 @@
         renderedLinks = links
             .map((l) => ({
                 source: simulatedNodes.find((n) => n.id === l.source),
-                target: simulatedNodes.find((n) => n.id === l.target)
+                target: simulatedNodes.find((n) => n.id === l.target),
+                representation: l.representation,
+                data: l.data
             }))
             .filter((l): l is SimulatedLink => !!l.source && !!l.target);
     });
@@ -221,7 +226,9 @@
         renderedLinks = links
             .map((l) => ({
                 source: simulatedNodes.find((n) => n.id === l.source),
-                target: simulatedNodes.find((n) => n.id === l.target)
+                target: simulatedNodes.find((n) => n.id === l.target),
+                representation: l.representation,
+                data: l.data
             }))
             .filter((l): l is SimulatedLink => !!l.source && !!l.target);
     });
@@ -231,6 +238,25 @@
     function handleMousMove(e: MouseEvent) {
         // @ts-ignore
         currentId = e.currentTarget?.dataset?.nodeid ?? 0;
+    }
+
+    const DEFAULT_LINK_REPRESENTATION: LinkRepresentation = {
+        lineStyle: 'solid',
+        color: '#999999',
+        arrowhead: 'none',
+        labelPropertyName: null
+    };
+
+    function dashArrayFor(lineStyle: LinkLineStyle): string | undefined {
+        if (lineStyle === 'dashed') return '6,4';
+        if (lineStyle === 'dotted') return '2,3';
+        return undefined;
+    }
+
+    function markerIdFor(arrowhead: LinkArrowhead): string | undefined {
+        if (arrowhead === 'arrow') return 'link-arrowhead-arrow';
+        if (arrowhead === 'open') return 'link-arrowhead-open';
+        return undefined;
     }
 </script>
 
@@ -242,6 +268,30 @@
     style="max-width: 100%; height: auto; height: intrinsic; cursor: {MODE_BEHAVIOURS[mode]
         .cursor};"
 >
+    <defs>
+        <marker
+            id="link-arrowhead-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+        >
+            <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
+        </marker>
+        <marker
+            id="link-arrowhead-open"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+        >
+            <path d="M1,1 L9,5 L1,9" fill="none" stroke="context-stroke" stroke-width="1.5" />
+        </marker>
+    </defs>
     <g bind:this={viewBoxElement}>
         {#if edgeDragSource && edgeDragCursor && edgeDragSource.x !== undefined && edgeDragSource.y !== undefined}
             <line
@@ -256,16 +306,30 @@
                 pointer-events="none"
             />
         {/if}
-        <g stroke="#999999" stroke-opacity="0.6" stroke-linecap="round">
-            {#each renderedLinks as { source, target } (source.id + '-' + target.id)}
+        <g stroke-opacity="0.6" stroke-linecap="round">
+            {#each renderedLinks as { source, target, representation, data: linkData } (source.id + '-' + target.id)}
+                {@const rep = representation ?? DEFAULT_LINK_REPRESENTATION}
+                {@const markerId = markerIdFor(rep.arrowhead)}
                 <line
                     stroke-width="1"
+                    stroke={rep.color}
+                    stroke-dasharray={dashArrayFor(rep.lineStyle)}
+                    marker-end={markerId ? `url(#${markerId})` : undefined}
                     x1={source.x}
                     y1={source.y}
                     x2={target.x}
                     y2={target.y}
                     data-linkId={source.id + '-' + target.id}
                 />
+                {#if rep.labelPropertyName && linkData?.[rep.labelPropertyName] !== undefined && source.x !== undefined && source.y !== undefined && target.x !== undefined && target.y !== undefined}
+                    <text
+                        x={(source.x + target.x) / 2}
+                        y={(source.y + target.y) / 2}
+                        text-anchor="middle"
+                        stroke="none"
+                        font-size="10">{linkData[rep.labelPropertyName]}</text
+                    >
+                {/if}
             {/each}
         </g>
         <!-- TODO: Invetsigate if better to have one event at top + manual collision detection or event on each element like here-->

@@ -1,9 +1,16 @@
 import type { Entity, EntityRelationship } from '$lib/entities/types';
-import type { EntityType } from '$lib/schema/types';
-import type { Node, Link } from '$lib/components/d3graph/types';
+import type { EntityType, RelationshipType } from '$lib/schema/types';
+import type { Node, Link, LinkRepresentation } from '$lib/components/d3graph/types';
 import type { ShapeConfiguration } from '$lib/components/d3graph/graphNodes/shapeConfiguration';
 import { defaultShapeConfigurations } from '$lib/components/d3graph/graphNodes/shapeConfiguration';
-import type { EntityRepresentation } from '$lib/representations/types';
+import type { EntityRepresentation, RelationshipRepresentation } from '$lib/representations/types';
+
+const DEFAULT_LINK_REPRESENTATION: LinkRepresentation = {
+    lineStyle: 'solid',
+    color: '#999999',
+    arrowhead: 'none',
+    labelPropertyName: null
+};
 
 function resolveShapeConfiguration(
     entityType: EntityType | undefined,
@@ -57,14 +64,45 @@ export function entitiesToNodes(
     return entities.map((entity) => entityToNode(entity, entityTypes, entityRepresentations));
 }
 
-export function entityRelationshipToLink(relationship: EntityRelationship): Link {
+function resolveLinkRepresentation(
+    relationshipType: RelationshipType | undefined,
+    relationshipRepresentations: RelationshipRepresentation[]
+): LinkRepresentation {
+    const representation = relationshipRepresentations.find(
+        (rep) => rep.id === relationshipType?.representationId
+    );
+    if (!representation) return DEFAULT_LINK_REPRESENTATION;
     return {
-        source: relationship.sourceEntityId,
-        target: relationship.targetEntityId,
-        relationshipTypeId: relationship.relationshipTypeId
+        lineStyle: representation.lineStyle,
+        color: representation.color,
+        arrowhead: representation.arrowhead,
+        labelPropertyName: representation.labelFieldName
     };
 }
 
-export function entityRelationshipsToLinks(relationships: EntityRelationship[]): Link[] {
-    return relationships.map(entityRelationshipToLink);
+export function entityRelationshipToLink(
+    relationship: EntityRelationship,
+    relationshipTypes: RelationshipType[] = [],
+    relationshipRepresentations: RelationshipRepresentation[] = []
+): Link {
+    const relationshipType = relationshipTypes.find(
+        (rt) => rt.id === relationship.relationshipTypeId
+    );
+    return {
+        source: relationship.sourceEntityId,
+        target: relationship.targetEntityId,
+        relationshipTypeId: relationship.relationshipTypeId,
+        representation: resolveLinkRepresentation(relationshipType, relationshipRepresentations),
+        data: relationship.fieldValues
+    };
+}
+
+export function entityRelationshipsToLinks(
+    relationships: EntityRelationship[],
+    relationshipTypes: RelationshipType[] = [],
+    relationshipRepresentations: RelationshipRepresentation[] = []
+): Link[] {
+    return relationships.map((relationship) =>
+        entityRelationshipToLink(relationship, relationshipTypes, relationshipRepresentations)
+    );
 }

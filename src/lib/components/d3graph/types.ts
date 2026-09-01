@@ -10,10 +10,22 @@ export interface Node {
     data: Record<string, any>;
 }
 
+export type LinkLineStyle = 'solid' | 'dashed' | 'dotted';
+export type LinkArrowhead = 'none' | 'arrow' | 'open';
+
+export interface LinkRepresentation {
+    lineStyle: LinkLineStyle;
+    color: string;
+    arrowhead: LinkArrowhead;
+    labelPropertyName: string | null;
+}
+
 export interface Link {
     source: string;
     target: string;
     relationshipTypeId?: string;
+    representation?: LinkRepresentation;
+    data?: Record<string, any>;
 }
 
 export interface NodeComponentProps<T> {
@@ -28,6 +40,8 @@ export interface SimulatedNode extends Node, d3.SimulationNodeDatum {}
 export interface SimulatedLink {
     source: SimulatedNode;
     target: SimulatedNode;
+    representation: LinkRepresentation | undefined;
+    data: Record<string, any> | undefined;
 }
 
 export interface GraphConfiguration {
